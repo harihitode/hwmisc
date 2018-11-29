@@ -19,8 +19,8 @@ module serial_top
    IBUF rcv_buf (.I(uart_txd_in), .O(uart_txd_in_d));
    always_ff @(posedge sysclk) uart_txd_in_dd <= uart_txd_in_d;
 
-   localparam I_BYTES = 1;
-   localparam O_BYTES = 1;
+   localparam I_BYTES = 4;
+   localparam O_BYTES = 4;
 
    wire [I_BYTES*8-1:0] i_data;
    wire                 i_valid;
@@ -30,7 +30,7 @@ module serial_top
    wire                 o_valid;
    wire                 o_ready;
 
-   assign i_data = o_data;
+   assign i_data = o_data[I_BYTES*8-1:0];
    assign i_valid = o_valid;
    assign o_ready = i_ready;
 
