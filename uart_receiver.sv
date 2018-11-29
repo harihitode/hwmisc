@@ -36,7 +36,7 @@ module uart_receiver
    assign statemachine_receive = (index == 8) ? reading & statemachine_countup : 0;
    assign statemachine_countup = (counter == 0) ? 1'b1 : 1'b0; // counter == 0
 
-   assign next_counter = (reset)                ? {4'd0, WTIME[15:1]} :
+   assign next_counter = (reset || state == SLEEP) ? {6'd0, WTIME[15:1]} :
                          (statemachine_countup) ? {5'd0, WTIME[15:0]} :
                          counter + 20'hfffff;
 
