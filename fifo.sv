@@ -21,10 +21,10 @@ module fifo
    localparam logic [1:0]   FIFO_W = 2'b10;
    localparam logic [1:0]   FIFO_WR = 2'b11;
 
-   logic [DATA_W-1:0]       mem[0:(2 ** FIFO_DEPTH_W) - 1];
-   logic [FIFO_DEPTH_W-1:0] read_pos = 'd0, write_pos = 'd0;
-   logic                    full = 0;
-   logic [1:0]              instruction;
+   logic [0:(2**FIFO_DEPTH_W)-1][DATA_W-1:0] mem = '0;
+   logic [FIFO_DEPTH_W-1:0]                  read_pos = 'd0, write_pos = 'd0;
+   logic                                     full = 0;
+   logic [1:0]                               instruction;
 
    assign a_ready = ~full;
    assign b_valid = (write_pos == read_pos) ? full : 1'b1;
