@@ -28,7 +28,6 @@ module serial_interface
    logic                         recv_ready, recv_valid;
    logic [7:0]                   recv_data;
 
-
    wire [I_BYTES*8-1:0]          trns_data_buf;
    int                           trns_cnt = '0;
    wire                          trns_fifo_ready;
