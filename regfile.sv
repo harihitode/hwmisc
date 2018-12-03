@@ -11,7 +11,8 @@ module register_file
    input logic [RSV_ID_W-1:0]                         rob_id,
    // from rob to reg
    input logic                                        we,
-   input logic [DATA_W+RSV_ID_W-1:0]                  wrData,
+   input logic [REG_ADDR_W-1:0]                       wrAddr,
+   input logic [DATA_W-1:0]                           wrData,
    // from reg to core
    input logic [N_RD_PORTS-1:0][REG_ADDR_W-1:0]       rdAddrs,
    output logic [N_RD_PORTS-1:0][DATA_W+RSV_ID_W-1:0] rdData,
@@ -24,7 +25,7 @@ module register_file
    wire [N_RD_PORTS-1:0][DATA_W-1:0]            regs;
    logic [2**REG_ADDR_W-1:0][DATA_W-1:0]        reg_file = '0;
 
-   wire [RSV_ID_W-1:0]                          wr_reg_id;
+   wire [REG_ADDR_W-1:0]                        wr_reg_id;
    wire [DATA_W-1:0]                            wr_reg_data;
 
    logic [2**REG_ADDR_W-1:0][RSV_ID_W-1:0]      query_n = '0;
@@ -43,12 +44,12 @@ module register_file
    end end
    endgenerate
 
-   assign wr_reg_id = wrData[DATA_W+RSV_ID_W-1:DATA_W];
-   assign wr_reg_data = (we) ? wrData[DATA_W-1:0] : reg_file[$unsigned(wr_reg_id)];
+   assign wr_reg_id = wrAddr;
+   assign wr_reg_data = (we) ? wrData : reg_file[$unsigned(wr_reg_id)];
 
    always_comb begin
-      // arg[0] is the destination register
-      automatic int dst_id = $unsigned(args[0]);
+      // arg[2] is the destination register
+      automatic int dst_id = $unsigned(args[2]);
       // the id which is committed
       automatic int cmt_id = $unsigned(wr_reg_id);
       for (int i = 0; i < 2**REG_ADDR_W; i++) begin

@@ -70,8 +70,9 @@ module core
    wire [N_REG_RD_PORTS-1:0][RSV_ID_W+DATA_W-1:0]   reg_rdData;
 
    // from rob to reg
-   logic [RSV_ID_W+DATA_W-1:0]                      reg_wr_data = 'b0;
    logic                                            reg_we = 'b0;
+   wire [REG_ADDR_W-1:0]                            reg_wr_addr;
+   wire [DATA_W-1:0]                                reg_wr_data;
    wire [N_ROB_RD_PORTS-1:0][RSV_ID_W+DATA_W-1:0]   rob_rdData;
    logic [N_ROB_RD_PORTS-1:0][RSV_ID_W-1:0]         rob_rdAddr = 'b0;
    // other TODO
@@ -126,7 +127,7 @@ module core
       case (opcode)
         I_SETI2, I_SAVE : begin
            alu_data <= {rob_id, opcode, operands[0], imm};
-           alu_filled <= {reg_filled[0], 1'b1};
+           alu_filled <= {reg_filled[2], 1'b1};
         end
         I_SETI1 : begin
            alu_data <= {rob_id, opcode, operands[1], imm};
@@ -134,7 +135,7 @@ module core
         end
         I_ADDI, I_SUBI, I_SLI : begin
            alu_data <= {rob_id, opcode, operands[1], operands[2]};
-           alu_filled <= {reg_filled[1], reg_filled[2]};
+           alu_filled <= {reg_filled[1], reg_filled[0]};
         end
       endcase
    end
@@ -191,6 +192,26 @@ module core
 
    assign alu_cdb_ready = units_cdb_ready[0];
 
+   assign reg_wr_addr = commit_data.dst_reg;
+   assign reg_wr_data = commit_data.content;
+   always_comb comitter : begin
+      if (commit_valid && commit_ready) begin
+         case (commit_data.opcode)
+           I_ADD, I_ADDI,
+           I_SUB, I_SUBI,
+           I_SL, I_SLI, I_SRL, I_SRA,
+           I_SAVE, I_SETI1, I_SETI2 : begin
+              reg_we <= 'b1;
+           end
+           default: begin
+              reg_we <= 'b0;
+           end
+         endcase
+      end else begin
+         reg_we <= 'b0;
+      end
+   end
+
    scheduler scheduler_inst
      (
       .*,
@@ -225,6 +246,7 @@ module core
       .rob_id(rob_id),
 
       .we(reg_we),
+      .wrAddr(reg_wr_addr),
       .wrData(reg_wr_data),
 
       .rdAddrs(reg_rdAddrs),
