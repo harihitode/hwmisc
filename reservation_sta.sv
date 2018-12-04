@@ -94,7 +94,8 @@ module reservation_station
             station_data_n[i] <= 'b0;
          end else if (cdb_valid) begin
             for (int j = 0; j < N_OPERANDS; j++) begin
-               if (~station_filled[i] && station_data[i][j][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
+               if (station_valid[i] && ~station_filled[i] && cdb_valid &&
+                   station_data[i][j][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
                   station_filled_n[i][j] <= 'b1;
                   station_data_n[i][j] <= cdb;
                end
