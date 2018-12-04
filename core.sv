@@ -48,6 +48,7 @@ module core
    wire [RSV_ID_W-1:0]           rob_id;
    wire                          rob_ready;
    wire                          rob_reserve;
+   logic                         rob_no_wait = 'b0;
    wire                          commit_valid;
    logic                         commit_ready = 'b1;
    wire                          station_t commit_data;
@@ -61,6 +62,7 @@ module core
    wire                                             alu_cdb_ready;
 
    logic [2:0][RSV_ID_W+DATA_W-1:0]                 operands;
+   logic [2:0]                                      operands_filled;
    logic [RSV_ID_W+DATA_W-1:0]                      imm;
 
    // REGs
@@ -74,9 +76,23 @@ module core
    wire [REG_ADDR_W-1:0]                            reg_wr_addr;
    wire [DATA_W-1:0]                                reg_wr_data;
    wire [N_ROB_RD_PORTS-1:0][RSV_ID_W+DATA_W-1:0]   rob_rdData;
+   wire [N_ROB_RD_PORTS-1:0]                        rob_rdData_filled;
    logic [N_ROB_RD_PORTS-1:0][RSV_ID_W-1:0]         rob_rdAddr = 'b0;
    // other TODO
    logic                                            branch_miss = 'b0;
+
+   //
+   logic                                            store_commit_valid = 'b0;
+   logic [RSV_ID_W-1:0]                             store_commit_id = 'b0;
+   logic                                            mmu_reserve = 'b0;
+   wire                                             mmu_ready;
+   logic [RSV_ID_W+INSTR_W+3*(RSV_ID_W+DATA_W)-1:0] mmu_data = '0;
+   logic [2:0]                                      mmu_filled = 'b0;
+   wire [RSV_ID_W-1:0]                              o_mmu_rsv_id;
+   wire                                             o_mmu_valid;
+   wire [DATA_W-1:0]                                o_mmu_data;
+   wire [DATA_W-1:0]                                o_mmu_addr;
+   wire [INSTR_W-1:0]                               o_mmu_opcode;
 
    assign cdb_valid = |units_cdb_valid;
 
@@ -104,12 +120,15 @@ module core
 
    generate begin for (genvar i = 0; i < 3; i++) begin
       always_comb begin
-         if (reg_filled[0]) begin
+         if (reg_filled[i]) begin
             operands[i] <= reg_rdData[i];
-         end else if (reg_rdData[i][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
+            operands_filled[i] <= reg_filled[i];
+         end else if (cdb_valid && reg_rdData[i][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
             operands[i] <= cdb;
+            operands_filled[i] <= 'b1;
          end else begin
             operands[i] <= rob_rdData[i];
+            operands_filled[i] <= rob_rdData_filled[i];
          end
       end
    end end
@@ -126,16 +145,49 @@ module core
    always_comb alu_reservation_data : begin
       case (opcode)
         I_SETI2, I_SAVE : begin
-           alu_data <= {rob_id, opcode, operands[0], imm};
-           alu_filled <= {reg_filled[2], 1'b1};
+           alu_data <= {rob_id, opcode, operands[2], imm};
+           alu_filled <= {operands_filled[2], 1'b1};
         end
         I_SETI1 : begin
            alu_data <= {rob_id, opcode, operands[1], imm};
-           alu_filled <= {reg_filled[1], 1'b1};
+           alu_filled <= {operands_filled[1], 1'b1};
         end
         I_ADDI, I_SUBI, I_SLI : begin
-           alu_data <= {rob_id, opcode, operands[1], operands[2]};
-           alu_filled <= {reg_filled[1], reg_filled[0]};
+           alu_data <= {rob_id, opcode, operands[1], operands[0]};
+           alu_filled <= {operands_filled[1], operands_filled[0]};
+        end
+      endcase
+   end // always_comb
+
+   always_comb begin
+      case (opcode)
+        I_STORE, I_STOREB, I_STORER,
+        I_STOREF, I_STOREBF, I_STORERF :
+          rob_no_wait <= 'b1;
+        default:
+          rob_no_wait <= 'b0;
+      endcase
+   end
+
+   always_comb mmu_reservation_data : begin
+      case (opcode)
+        I_LOAD, I_LOADB,
+        I_LOADF, I_LOADBF : begin
+           mmu_data <= {rob_id, opcode, (RSV_ID_W+DATA_W)'(0), operands[1], imm};
+           mmu_filled <= {1'b1, operands_filled[1], 1'b1};
+        end
+        I_LOADR, I_LOADRF : begin
+           mmu_data <= {rob_id, opcode, (RSV_ID_W+DATA_W)'(0), operands[1], operands[0]};
+           mmu_filled <= {1'b1, operands_filled[1], operands_filled[0]};
+        end
+        I_STORE, I_STOREB,
+        I_STOREF, I_STOREBF : begin
+           mmu_data <= {rob_id, opcode, operands[2], operands[1], imm};
+           mmu_filled <= {operands_filled[2], operands_filled[1], 1'b1};
+        end
+        I_STORER, I_STORERF : begin
+           mmu_data <= {rob_id, opcode, operands[2], operands[1], operands[0]};
+           mmu_filled <= {operands_filled[2], operands_filled[1], operands_filled[0]};
         end
       endcase
    end
@@ -150,7 +202,19 @@ module core
         default :
           alu_reserve <= 'b0;
       endcase
-   end // always_comb
+   end
+
+   always_comb def_mmu_reserve : begin
+      case (opcode)
+        I_LOAD, I_LOADB, I_LOADR,
+        I_LOADF, I_LOADBF, I_LOADRF,
+        I_STORE, I_STOREB, I_STORER,
+        I_STOREF, I_STOREBF, I_STORERF :
+          mmu_reserve <= 'b1;
+        default :
+          mmu_reserve <= 'b0;
+      endcase
+   end
 
    always_comb def_reg_reserve : begin
       case (opcode)
@@ -184,6 +248,11 @@ module core
            I_SL, I_SLI, I_SRL, I_SRA,
            I_SAVE, I_SETI1, I_SETI2 :
              halt <= ~alu_ready;
+           I_LOAD, I_LOADB, I_LOADR,
+           I_LOADF, I_LOADBF, I_LOADRF,
+           I_STORE, I_STOREB, I_STORER,
+           I_STOREF, I_STOREBF, I_STORERF :
+             halt <= ~mmu_ready;
            default:
              halt <= 'b0;
          endcase
@@ -196,6 +265,9 @@ module core
    assign reg_wr_data = commit_data.content;
    always_comb comitter : begin
       if (commit_valid && commit_ready) begin
+         reg_we <= 'b0;
+         store_commit_valid <= 'b0;
+         store_commit_id <= 'b0;
          case (commit_data.opcode)
            I_ADD, I_ADDI,
            I_SUB, I_SUBI,
@@ -203,14 +275,17 @@ module core
            I_SAVE, I_SETI1, I_SETI2 : begin
               reg_we <= 'b1;
            end
-           default: begin
-              reg_we <= 'b0;
+           I_STORE, I_STOREB, I_STORER,
+           I_STOREF, I_STOREBF, I_STORERF : begin
+              store_commit_valid <= 'b1;
+              store_commit_id <= commit_data.station_id;
            end
          endcase
       end else begin
          reg_we <= 'b0;
+         store_commit_valid <= 'b0;
       end
-   end
+   end // always_comb
 
    scheduler scheduler_inst
      (
@@ -232,6 +307,31 @@ module core
       .o_cdb(alu_cdb),
       .o_valid(units_cdb_valid[0]),
       .o_ready(alu_cdb_ready),
+
+      .nrst(nrst)
+      );
+
+   memory_management_unit mmu_inst
+     (
+      .clk(clk),
+
+      .i_valid(mmu_reserve),
+      .i_data(mmu_data),
+      .i_filled(mmu_filled),
+      .i_ready(mmu_ready),
+
+      .store_commit_valid(store_commit_valid),
+      .store_commit_id(store_commit_id),
+
+      .cdb(cdb),
+      .cdb_valid(cdb_valid),
+
+      .o_valid(o_mmu_valid),
+      .o_rsv_id(o_mmu_rsv_id),
+      .o_opcode(o_mmu_opcode),
+      .o_address(o_mmu_addr),
+      .o_data(o_mmu_data),
+      .o_ready(1'b1),
 
       .nrst(nrst)
       );
@@ -262,11 +362,13 @@ module core
       .i_valid(rob_reserve),
       .i_ready(rob_ready), // rob nfull
       .i_rsv_id(rob_id),
+      .i_no_wait(rob_no_wait),
       .i_opcode(opcode),
       .i_dst_reg(o_current_inst[25:21]),
 
       .rob_id(rob_rdAddr),
       .rob_data(rob_rdData),
+      .rob_data_filled(rob_rdData_filled),
 
       .o_valid(commit_valid),
       .o_commit_data(commit_data),

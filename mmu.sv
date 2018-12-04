@@ -1,0 +1,190 @@
+`timescale 1 ns / 1 ps
+`include "fcpu_definitions.svh"
+import fcpu_pkg::*;
+
+module memory_management_unit
+  #(localparam N_OPERANDS = 3)
+   (
+    input logic                                                     clk,
+
+    input logic                                                     i_valid,
+    input logic [RSV_ID_W+INSTR_W+N_OPERANDS*(RSV_ID_W+DATA_W)-1:0] i_data,
+    input logic [N_OPERANDS-1:0]                                    i_filled,
+    output logic                                                    i_ready,
+
+    input logic                                                     store_commit_valid,
+    input logic [RSV_ID_W-1:0]                                      store_commit_id,
+
+    input logic [CDB_W-1:0]                                         cdb,
+    input                                                           cdb_valid,
+
+    output logic                                                    o_valid,
+    output logic [INSTR_W-1:0]                                      o_opcode,
+    output logic [RSV_ID_W-1:0]                                     o_rsv_id,
+    output logic [DATA_W-1:0]                                       o_address,
+    output logic [DATA_W-1:0]                                       o_data,
+    input logic                                                     o_ready,
+
+    input logic                                                     nrst
+    );
+
+   localparam STORE_BUFFER_SIZE = 4;
+   typedef struct                                                   packed {
+      logic [RSV_ID_W-1:0]     rob_id;
+      logic [INSTR_W-1:0]      opcode;
+      logic                    valid;
+      logic                    committed;
+      logic                    data_ready;
+      logic                    addr_ready;
+      logic [RSV_ID_W-1:0]     data_rob_id;
+      logic [DATA_W-1:0]       data;
+      logic [DATA_W-1:0]       address;
+      logic                    override;
+   } store_buffer_t;
+   store_buffer_t head_buffer;
+
+   int                         head = 0, tail = 0;
+   int                         head_n = 0, tail_n = 0;
+
+   wire                        i_ready_preaddress;
+   wire                        i_ready_storebuffer;
+   wire                        address_valid;
+   wire [RSV_ID_W+INSTR_W+2*(DATA_W)-1:0] address;
+   logic                                  address_ready = 'b0;
+   logic                                  load_bypassing = 'b0;
+   logic [DATA_W-1:0]                     computed_address = 'b0;
+
+   store_buffer_t store_buffer [STORE_BUFFER_SIZE-1:0] = '{default:'b0};
+   store_buffer_t store_buffer_n [STORE_BUFFER_SIZE-1:0] = '{default:'b0};
+   assign head_buffer = store_buffer[head];
+
+   always_comb begin
+      if (head_buffer.valid & head_buffer.data_ready &
+          head_buffer.addr_ready & head_buffer.committed) begin
+         o_rsv_id <= head_buffer.rob_id;
+         o_data <= head_buffer.data;
+         o_address <= head_buffer.address;
+         o_valid <= 'b1;
+         o_opcode <= head_buffer.opcode;
+      end else if (address_valid) begin
+         // load bypassig & load forwarding
+         o_rsv_id <= address[2*(DATA_W+RSV_ID_W)+INSTR_W+:RSV_ID_W];
+         o_data <= 'b0;
+         o_address <= computed_address;
+         o_valid <= 'b1;
+         o_opcode <= address[2*(DATA_W+RSV_ID_W)+:INSTR_W];
+      end
+   end
+
+   always_comb begin
+      case (address[2*(DATA_W+RSV_ID_W)+:INSTR_W])
+        I_STORE, I_STOREB, I_STORER,
+        I_STOREF, I_STOREBF, I_STORERF :
+          address_ready <= 'b1;
+        default :
+          address_ready <= load_bypassing & o_valid;
+      endcase
+   end
+
+   assign i_ready_storebuffer = (head_buffer.valid && (head == tail)) ? 'b0 : 'b1;
+   assign i_ready = i_ready_preaddress | i_ready_storebuffer;
+
+   always_comb head_countup : begin
+      if (o_valid && o_ready) begin
+         if (head == STORE_BUFFER_SIZE-1) begin
+            head_n <= 0;
+         end else begin
+            head_n <= head + 'b1;
+         end
+      end else begin
+         head_n <= head;
+      end
+   end // always_comb
+
+   always_comb tail_countup : begin
+      if (i_valid && i_ready) begin
+         if (tail == STORE_BUFFER_SIZE-1) begin
+            tail_n <= 0;
+         end else begin
+            tail_n <= tail + 'b1;
+         end
+      end else begin
+         tail_n <= tail;
+      end
+   end // always_comb
+
+   always_ff @(posedge clk) begin
+      if (nrst) begin
+         head <= head_n;
+         tail <= tail_n;
+         store_buffer <= store_buffer_n;
+      end else begin
+         head <= 'b0;
+         tail <= 'b0;
+         store_buffer <= '{default:'b0};
+      end
+   end // always_ff @ (posedge clk)
+
+   always_comb begin
+      computed_address <= address[DATA_W+:DATA_W] + address[0+:DATA_W];
+   end
+
+   generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
+      always_comb begin
+         store_buffer_n[i] <= store_buffer[i];
+         if (i_valid && i_ready && i == tail) begin
+            store_buffer_n[i].valid      <= 'b1;
+            store_buffer_n[i].opcode     <= i_data[3*(DATA_W+RSV_ID_W)+:INSTR_W];
+            store_buffer_n[i].rob_id     <= i_data[3*(DATA_W+RSV_ID_W)+INSTR_W+:RSV_ID_W];
+            store_buffer_n[i].data       <= i_data[2*(DATA_W+RSV_ID_W)+:DATA_W];
+            store_buffer_n[i].data_rob_id <= i_data[2*(DATA_W+RSV_ID_W)+DATA_W+:RSV_ID_W];
+            store_buffer_n[i].data_ready <= i_filled[2];
+            store_buffer_n[i].override <= 'b0;
+         end else if (store_buffer[i].valid &&
+                      cdb_valid &&
+                      store_buffer[i].data_rob_id == cdb[DATA_W+:RSV_ID_W]) begin
+            store_buffer_n[i].data <= cdb[DATA_W-1:0];
+            store_buffer_n[i].data_ready <= 'b1;
+         end
+         if (address_valid &&
+             address[2*DATA_W+INSTR_W+:RSV_ID_W] == store_buffer[i].rob_id) begin
+            store_buffer_n[i].address <= computed_address;
+            store_buffer_n[i].addr_ready <= 'b1;
+         end else if (address_valid &&
+                      computed_address == store_buffer[i].address) begin
+            store_buffer_n[i].override <= 'b1;
+         end
+         if (store_commit_valid &&
+             store_commit_id == store_buffer[i].rob_id) begin
+            store_buffer_n[i].committed <= 'b1;
+         end
+         if (o_valid && o_ready && i == head) begin
+            store_buffer_n[i] <= 'b0;
+         end
+      end
+   end end
+   endgenerate
+
+   reservation_station
+     #(.N_OPERANDS(2),
+       .N_STATIONS_W(4))
+   preaddress_buffer
+     (
+      .clk(clk),
+
+      .i_valid(i_valid),
+      .i_data({i_data[3*(RSV_ID_W+DATA_W)+:RSV_ID_W+INSTR_W], i_data[0+:2*(RSV_ID_W+DATA_W)]}),
+      .i_filled(i_filled[1:0]),
+      .i_ordered('b1),
+      .i_ready(i_ready_preaddress),
+
+      .o_valid(address_valid),
+      .o_data(address),
+      .o_ready(address_ready),
+
+      .cdb_valid(cdb_valid),
+      .cdb(cdb),
+      .nrst(nrst)
+      );
+
+endmodule
