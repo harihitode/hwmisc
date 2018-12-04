@@ -55,10 +55,10 @@ module register_file
       for (int i = 0; i < 2**REG_ADDR_W; i++) begin
          if (rsv && i == dst_id) begin
             query_n[i] <= rob_id;
-            filled_n[i] <= '0;
+            filled_n[i] <= 'b0;
          end else if (we && i == cmt_id) begin
-            query_n[i] <= '0;
-            filled_n[i] <= '1;
+            query_n[i] <= 'b0;
+            filled_n[i] <= 'b1;
          end else begin
             query_n[i] <= query[i];
             filled_n[i] <= filled[i];
