@@ -11,11 +11,13 @@ module reorder_buffer
     output logic                                       i_ready,
     output logic [RSV_ID_W-1:0]                        i_rsv_id,
     input logic [REG_ADDR_W-1:0]                       i_dst_reg,
+    input logic                                        i_no_wait, // store, jump etc
     input logic [INSTR_W-1:0]                          i_opcode,
 
     // rob read port
     input logic [ROB_PORT_W-1:0][RSV_ID_W-1:0]         rob_id,
     output logic [ROB_PORT_W-1:0][RSV_ID_W+DATA_W-1:0] rob_data,
+    output logic [ROB_PORT_W-1:0]                      rob_data_filled,
 
     // to committer
     output logic                                       o_valid,
@@ -33,8 +35,6 @@ module reorder_buffer
    station_t new_station [2**N_ROB_W-1:0] = '{default:'0};
    station_t update_station [2**N_ROB_W-1:0] = '{default:'0};
    station_t head_station = '0;
-
-   logic [ROB_PORT_W-1:0][2**N_ROB_W-1:0][RSV_ID_W+DATA_W-1:0] rob_data_vec;
 
    logic [2**N_ROB_W-1:0]                                      rob_reserve;
    logic [2**N_ROB_W-1:0]                                      rob_release;
@@ -71,14 +71,11 @@ module reorder_buffer
 
    // ROB data read {
    generate begin for (genvar i = 0; i < ROB_PORT_W; i++) begin
-      assign rob_data[i] = |rob_data_vec[i];
-
-      for (genvar j = 0; j < 2**N_ROB_W; j++) begin
-         always_comb begin
+      always_comb begin
+         for (int j = 0; j < 2**N_ROB_W; j++) begin
             if (j == rob_id[i]) begin
-               rob_data_vec[i][j] <= {station[j].station_id, station[j].content};
-            end else begin
-               rob_data_vec[i][j] <= 'b0;
+               rob_data[i] <= {station[j].station_id, station[j].content};
+               rob_data_filled[i] <= station[j].ready;
             end
          end
       end
@@ -92,7 +89,7 @@ module reorder_buffer
          // reserve new rob station {
          new_station[i].station_id <= (N_ROB_W)'(i);
          new_station[i].valid      <= 'b1;
-         new_station[i].ready      <= 'b0;
+         new_station[i].ready      <= i_no_wait;
          new_station[i].dst_reg    <= i_dst_reg;
          new_station[i].opcode     <= i_opcode;
          new_station[i].content    <= 'b0;
