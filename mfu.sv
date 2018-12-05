@@ -120,7 +120,8 @@ module memory_functional_unit
    always_comb begin
       case (address[2*DATA_W+:INSTR_W])
         I_STORE, I_STOREB, I_STORER,
-        I_STOREF, I_STOREBF, I_STORERF : begin
+        I_STOREF, I_STOREBF, I_STORERF,
+        I_OUTPUT : begin
            address_store <= 'b1;
         end
         default : begin
