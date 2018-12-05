@@ -84,19 +84,19 @@ module core
    //
    logic                                            store_commit_valid = 'b0;
    logic [RSV_ID_W-1:0]                             store_commit_id = 'b0;
-   logic                                            mmu_reserve = 'b0;
-   wire                                             mmu_ready;
-   logic [RSV_ID_W+INSTR_W+3*(RSV_ID_W+DATA_W)-1:0] mmu_data = '0;
-   logic [2:0]                                      mmu_filled = 'b0;
-   wire [CDB_W-1:0]                                 mmu_cdb;
-   wire                                             mmu_cdb_ready;
+   logic                                            mfu_reserve = 'b0;
+   wire                                             mfu_ready;
+   logic [RSV_ID_W+INSTR_W+3*(RSV_ID_W+DATA_W)-1:0] mfu_data = '0;
+   logic [2:0]                                      mfu_filled = 'b0;
+   wire [CDB_W-1:0]                                 mfu_cdb;
+   wire                                             mfu_cdb_ready;
 
-   wire [RSV_ID_W-1:0]                              o_mmu_rsv_id;
-   wire                                             o_mmu_valid;
-   wire [DATA_W-1:0]                                o_mmu_data;
-   wire [DATA_W-1:0]                                o_mmu_addr;
-   wire [INSTR_W-1:0]                               o_mmu_opcode;
-   logic                                            o_mmu_ready = 'b1;
+   wire [RSV_ID_W-1:0]                              o_mfu_rsv_id;
+   wire                                             o_mfu_valid;
+   wire [DATA_W-1:0]                                o_mfu_data;
+   wire [DATA_W-1:0]                                o_mfu_addr;
+   wire [INSTR_W-1:0]                               o_mfu_opcode;
+   logic                                            o_mfu_ready = 'b1;
 
    assign cdb_valid = |units_cdb_valid;
 
@@ -104,7 +104,7 @@ module core
       if (units_cdb_valid[0]) begin
          cdb <= alu_cdb;
       end else if (units_cdb_valid[1]) begin
-         cdb <= mmu_cdb;
+         cdb <= mfu_cdb;
       end else begin
          cdb <= 'b0;
       end
@@ -175,25 +175,25 @@ module core
       endcase
    end
 
-   always_comb mmu_reservation_data : begin
+   always_comb mfu_reservation_data : begin
       case (opcode)
         I_LOAD, I_LOADB,
         I_LOADF, I_LOADBF : begin
-           mmu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], imm};
-           mmu_filled <= {1'b1, operands_filled[1], 1'b1};
+           mfu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], imm};
+           mfu_filled <= {1'b1, operands_filled[1], 1'b1};
         end
         I_LOADR, I_LOADRF : begin
-           mmu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], operands[0]};
-           mmu_filled <= {1'b1, operands_filled[1], operands_filled[0]};
+           mfu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], operands[0]};
+           mfu_filled <= {1'b1, operands_filled[1], operands_filled[0]};
         end
         I_STORE, I_STOREB,
         I_STOREF, I_STOREBF : begin
-           mmu_data <= {rob_id, opcode, operands[2], operands[1], imm};
-           mmu_filled <= {operands_filled[2], operands_filled[1], 1'b1};
+           mfu_data <= {rob_id, opcode, operands[2], operands[1], imm};
+           mfu_filled <= {operands_filled[2], operands_filled[1], 1'b1};
         end
         I_STORER, I_STORERF : begin
-           mmu_data <= {rob_id, opcode, operands[2], operands[1], operands[0]};
-           mmu_filled <= {operands_filled[2], operands_filled[1], operands_filled[0]};
+           mfu_data <= {rob_id, opcode, operands[2], operands[1], operands[0]};
+           mfu_filled <= {operands_filled[2], operands_filled[1], operands_filled[0]};
         end
       endcase
    end
@@ -210,15 +210,15 @@ module core
       endcase
    end
 
-   always_comb def_mmu_reserve : begin
+   always_comb def_mfu_reserve : begin
       case (opcode)
         I_LOAD, I_LOADB, I_LOADR,
         I_LOADF, I_LOADBF, I_LOADRF,
         I_STORE, I_STOREB, I_STORER,
         I_STOREF, I_STOREBF, I_STORERF :
-          mmu_reserve <= 'b1;
+          mfu_reserve <= 'b1;
         default :
-          mmu_reserve <= 'b0;
+          mfu_reserve <= 'b0;
       endcase
    end
 
@@ -258,7 +258,7 @@ module core
            I_LOADF, I_LOADBF, I_LOADRF,
            I_STORE, I_STOREB, I_STORER,
            I_STOREF, I_STOREBF, I_STORERF :
-             halt <= ~mmu_ready;
+             halt <= ~mfu_ready;
            default:
              halt <= 'b0;
          endcase
@@ -266,7 +266,7 @@ module core
    end
 
    assign alu_cdb_ready = units_cdb_ready[0];
-   assign mmu_cdb_ready = units_cdb_ready[1];
+   assign mfu_cdb_ready = units_cdb_ready[1];
 
    assign reg_wr_addr = commit_data.dst_reg;
    assign reg_wr_data = commit_data.content;
@@ -320,14 +320,14 @@ module core
       .nrst(nrst)
       );
 
-   memory_management_unit mmu_inst
+   memory_functional_unit mfu_inst
      (
       .clk(clk),
 
-      .i_valid(mmu_reserve),
-      .i_data(mmu_data),
-      .i_filled(mmu_filled),
-      .i_ready(mmu_ready),
+      .i_valid(mfu_reserve),
+      .i_data(mfu_data),
+      .i_filled(mfu_filled),
+      .i_ready(mfu_ready),
 
       .store_commit_valid(store_commit_valid),
       .store_commit_id(store_commit_id),
@@ -335,16 +335,16 @@ module core
       .cdb(cdb),
       .cdb_valid(cdb_valid),
 
-      .o_cdb(mmu_cdb),
+      .o_cdb(mfu_cdb),
       .o_cdb_valid(units_cdb_valid[1]),
-      .o_cdb_ready(mmu_cdb_ready),
+      .o_cdb_ready(mfu_cdb_ready),
 
-      .o_valid(o_mmu_valid),
-      .o_rsv_id(o_mmu_rsv_id),
-      .o_opcode(o_mmu_opcode),
-      .o_address(o_mmu_addr),
-      .o_data(o_mmu_data),
-      .o_ready(o_mmu_ready),
+      .o_valid(o_mfu_valid),
+      .o_rsv_id(o_mfu_rsv_id),
+      .o_opcode(o_mfu_opcode),
+      .o_address(o_mfu_addr),
+      .o_data(o_mfu_data),
+      .o_ready(o_mfu_ready),
 
       .nrst(nrst)
       );

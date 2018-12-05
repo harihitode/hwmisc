@@ -2,7 +2,7 @@
 `include "fcpu_definitions.svh"
 import fcpu_pkg::*;
 
-module memory_management_unit
+module memory_functional_unit
   #(localparam N_OPERANDS = 3)
    (
     input logic                                                     clk,
