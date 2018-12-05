@@ -36,7 +36,7 @@ module core
    logic                          halt = 'b0;
 
    // common data bus
-   localparam N_UNITS = 1;
+   localparam N_UNITS = 2;
    localparam N_REG_RD_PORTS = 3;
    localparam N_ROB_RD_PORTS = 6;
    logic [CDB_W-1:0]              cdb = 'b0;
@@ -88,17 +88,23 @@ module core
    wire                                             mmu_ready;
    logic [RSV_ID_W+INSTR_W+3*(RSV_ID_W+DATA_W)-1:0] mmu_data = '0;
    logic [2:0]                                      mmu_filled = 'b0;
+   wire [CDB_W-1:0]                                 mmu_cdb;
+   wire                                             mmu_cdb_ready;
+
    wire [RSV_ID_W-1:0]                              o_mmu_rsv_id;
    wire                                             o_mmu_valid;
    wire [DATA_W-1:0]                                o_mmu_data;
    wire [DATA_W-1:0]                                o_mmu_addr;
    wire [INSTR_W-1:0]                               o_mmu_opcode;
+   logic                                            o_mmu_ready = 'b1;
 
    assign cdb_valid = |units_cdb_valid;
 
    always_comb begin
       if (units_cdb_valid[0]) begin
          cdb <= alu_cdb;
+      end else if (units_cdb_valid[1]) begin
+         cdb <= mmu_cdb;
       end else begin
          cdb <= 'b0;
       end
@@ -173,11 +179,11 @@ module core
       case (opcode)
         I_LOAD, I_LOADB,
         I_LOADF, I_LOADBF : begin
-           mmu_data <= {rob_id, opcode, (RSV_ID_W+DATA_W)'(0), operands[1], imm};
+           mmu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], imm};
            mmu_filled <= {1'b1, operands_filled[1], 1'b1};
         end
         I_LOADR, I_LOADRF : begin
-           mmu_data <= {rob_id, opcode, (RSV_ID_W+DATA_W)'(0), operands[1], operands[0]};
+           mmu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], operands[0]};
            mmu_filled <= {1'b1, operands_filled[1], operands_filled[0]};
         end
         I_STORE, I_STOREB,
@@ -260,6 +266,7 @@ module core
    end
 
    assign alu_cdb_ready = units_cdb_ready[0];
+   assign mmu_cdb_ready = units_cdb_ready[1];
 
    assign reg_wr_addr = commit_data.dst_reg;
    assign reg_wr_data = commit_data.content;
@@ -272,7 +279,9 @@ module core
            I_ADD, I_ADDI,
            I_SUB, I_SUBI,
            I_SL, I_SLI, I_SRL, I_SRA,
-           I_SAVE, I_SETI1, I_SETI2 : begin
+           I_SAVE, I_SETI1, I_SETI2,
+           I_LOAD, I_LOADB, I_LOADR,
+           I_LOADF, I_LOADBF, I_LOADRF : begin
               reg_we <= 'b1;
            end
            I_STORE, I_STOREB, I_STORER,
@@ -326,12 +335,16 @@ module core
       .cdb(cdb),
       .cdb_valid(cdb_valid),
 
+      .o_cdb(mmu_cdb),
+      .o_cdb_valid(units_cdb_valid[1]),
+      .o_cdb_ready(mmu_cdb_ready),
+
       .o_valid(o_mmu_valid),
       .o_rsv_id(o_mmu_rsv_id),
       .o_opcode(o_mmu_opcode),
       .o_address(o_mmu_addr),
       .o_data(o_mmu_data),
-      .o_ready(1'b1),
+      .o_ready(o_mmu_ready),
 
       .nrst(nrst)
       );

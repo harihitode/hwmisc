@@ -18,6 +18,10 @@ module memory_management_unit
     input logic [CDB_W-1:0]                                         cdb,
     input                                                           cdb_valid,
 
+    output logic [CDB_W-1:0]                                        o_cdb,
+    output logic                                                    o_cdb_valid,
+    input logic                                                     o_cdb_ready,
+
     output logic                                                    o_valid,
     output logic [INSTR_W-1:0]                                      o_opcode,
     output logic [RSV_ID_W-1:0]                                     o_rsv_id,
@@ -51,7 +55,9 @@ module memory_management_unit
    wire                        address_valid;
    wire [RSV_ID_W+INSTR_W+2*(DATA_W)-1:0] address;
    logic                                  address_ready = 'b0;
+   logic                                  address_store = 'b0;
    logic                                  load_bypassing = 'b0;
+   logic                                  load_forwarding = 'b0;
    logic [DATA_W-1:0]                     computed_address = 'b0;
 
    store_buffer_t store_buffer [STORE_BUFFER_SIZE-1:0] = '{default:'b0};
@@ -59,6 +65,11 @@ module memory_management_unit
    assign head_buffer = store_buffer[head];
 
    always_comb begin
+      o_rsv_id <= 'b0;
+      o_data <= 'b0;
+      o_address <= 'b0;
+      o_valid <= 'b0;
+      o_opcode <= 'b0;
       if (head_buffer.valid & head_buffer.data_ready &
           head_buffer.addr_ready & head_buffer.committed) begin
          o_rsv_id <= head_buffer.rob_id;
@@ -66,24 +77,65 @@ module memory_management_unit
          o_address <= head_buffer.address;
          o_valid <= 'b1;
          o_opcode <= head_buffer.opcode;
-      end else if (address_valid) begin
+      end else if (load_bypassing) begin
          // load bypassig & load forwarding
-         o_rsv_id <= address[2*(DATA_W+RSV_ID_W)+INSTR_W+:RSV_ID_W];
+         o_rsv_id <= address[2*DATA_W+INSTR_W+:RSV_ID_W];
          o_data <= 'b0;
          o_address <= computed_address;
          o_valid <= 'b1;
-         o_opcode <= address[2*(DATA_W+RSV_ID_W)+:INSTR_W];
+         o_opcode <= address[2*DATA_W+:INSTR_W];
       end
+   end // always_comb
+
+   always_comb begin
+      load_bypassing <= 'b0;
+      if (address_valid && !address_store) begin
+         load_bypassing <= 'b1;
+         for (int i = 0; i < STORE_BUFFER_SIZE; i++) begin
+            if (computed_address == store_buffer[i].address) begin
+               load_bypassing <= 'b0;
+               break;
+            end
+         end
+      end
+   end // always_comb
+
+   always_comb begin
+      load_forwarding <= 'b0;
+      o_cdb <= 'b0;
+      o_cdb_valid <= 'b0;
+      if (address_valid && !address_store) begin
+         for (int i = 0; i < STORE_BUFFER_SIZE; i++) begin
+            if (computed_address == store_buffer[i].address &&
+                store_buffer[i].data_ready &&
+                !store_buffer[i].override) begin
+               load_forwarding <= 'b1;
+               o_cdb <= {address[2*DATA_W+INSTR_W+:RSV_ID_W], store_buffer[i].data};
+               o_cdb_valid <= 'b1;
+            end
+         end
+      end
+   end // always_comb
+
+   always_comb begin
+      case (address[2*DATA_W+:INSTR_W])
+        I_STORE, I_STOREB, I_STORER,
+        I_STOREF, I_STOREBF, I_STORERF : begin
+           address_store <= 'b1;
+        end
+        default : begin
+           address_store <= 'b0;
+        end
+      endcase
    end
 
    always_comb begin
-      case (address[2*(DATA_W+RSV_ID_W)+:INSTR_W])
-        I_STORE, I_STOREB, I_STORER,
-        I_STOREF, I_STOREBF, I_STORERF :
-          address_ready <= 'b1;
-        default :
-          address_ready <= load_bypassing & o_valid;
-      endcase
+      if (address_store) begin
+         address_ready <= 'b1;
+      end else begin
+         address_ready <= (load_bypassing & o_valid) |
+                          (load_forwarding & o_cdb_ready);
+      end
    end
 
    assign i_ready_storebuffer = (head_buffer.valid && (head == tail)) ? 'b0 : 'b1;
