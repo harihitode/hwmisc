@@ -38,8 +38,8 @@ module reservation_station
    logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0][RSV_ID_W+DATA_W-1:0] station_data_n = '0;
    logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0][RSV_ID_W+DATA_W-1:0] station_data = '0;
 
-   int                                       delete_st = 0;
-   int                                       empty_st = 0;
+   int                                                              delete_st = 0;
+   int                                                              empty_st = 0;
 
    assign o_data[N_OPERANDS*DATA_W+:(RSV_ID_W+INSTR_W)] = station[delete_st][RSV_ID_W+:RSV_ID_W+INSTR_W];
 
