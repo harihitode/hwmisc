@@ -18,14 +18,13 @@ module fcpu
    end
 
    initial begin
-      cram[0] <= {I_SETI2, 5'h01, 21'h7};
-      cram[1] <= {I_SETI2, 5'h02, 21'h8};
-      cram[2] <= {I_SETI2, 5'h03, 21'h9};
-      cram[3] <= {I_SETI2, 5'h04, 21'ha};
-      cram[4] <= {I_SETI2, 5'h05, 21'hb};
-      cram[5] <= {I_SETI2, 5'h06, 21'hc};
-      cram[6] <= {I_SETI2, 5'h07, 21'hd};
-      cram[7] <= {I_SETI2, 5'h08, 21'he};
+      cram[0] <= {I_SETI2, 5'h01, 21'h4};
+      cram[1] <= {I_SETI2, 5'h02, 21'h4};
+      cram[2] <= {I_SETI2, 5'h03, 21'h777};
+      cram[3] <= {I_SETI2, 5'h04, 21'h999};
+      cram[4] <= {I_STORER, 5'h03, 5'h02, 5'h01, 11'h0};
+      cram[5] <= {I_STORER, 5'h04, 5'h02, 5'h01, 11'h0};
+      cram[6] <= {I_LOADR , 5'h05, 5'h02, 5'h01, 11'h0};
    end
 
    wire [7:0] io_o_data;
