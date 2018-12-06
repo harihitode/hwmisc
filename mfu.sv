@@ -134,7 +134,7 @@ module memory_functional_unit
       if (address_store) begin
          address_ready <= 'b1;
       end else begin
-         address_ready <= (load_bypassing & o_valid) |
+         address_ready <= (load_bypassing & o_ready) |
                           (load_forwarding & o_cdb_ready);
       end
    end
@@ -142,8 +142,37 @@ module memory_functional_unit
    assign i_ready_storebuffer = (head_buffer.valid && (head == tail)) ? 'b0 : 'b1;
    assign i_ready = i_ready_preaddress | i_ready_storebuffer;
 
-   always_comb head_countup : begin
+   logic store_buffer_push = 'b0;
+   logic store_buffer_pop = 'b0;
+
+   always_comb begin
+      store_buffer_push <= 'b0;
+      if (i_valid && i_ready) begin
+         case (i_data[3*(DATA_W+RSV_ID_W)+:INSTR_W])
+           I_STORE, I_STOREB, I_STORER,
+           I_STOREF, I_STOREBF, I_STORERF,
+           I_OUTPUT : begin
+              store_buffer_push <= 'b1;
+           end
+         endcase
+      end
+   end // always_comb
+
+   always_comb begin
+      store_buffer_pop <= 'b0;
       if (o_valid && o_ready) begin
+         case (o_opcode)
+           I_STORE, I_STOREB, I_STORER,
+           I_STOREF, I_STOREBF, I_STORERF,
+           I_OUTPUT : begin
+              store_buffer_pop <= 'b1;
+           end
+         endcase
+      end
+   end
+
+   always_comb head_countup : begin
+      if (store_buffer_pop) begin
          if (head == STORE_BUFFER_SIZE-1) begin
             head_n <= 0;
          end else begin
@@ -155,7 +184,7 @@ module memory_functional_unit
    end // always_comb
 
    always_comb tail_countup : begin
-      if (i_valid && i_ready) begin
+      if (store_buffer_push) begin
          if (tail == STORE_BUFFER_SIZE-1) begin
             tail_n <= 0;
          end else begin
@@ -185,22 +214,26 @@ module memory_functional_unit
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
       always_comb begin
          store_buffer_n[i] <= store_buffer[i];
-         if (i_valid && i_ready && i == tail) begin
-            store_buffer_n[i].valid      <= 'b1;
-            store_buffer_n[i].opcode     <= i_data[3*(DATA_W+RSV_ID_W)+:INSTR_W];
-            store_buffer_n[i].rob_id     <= i_data[3*(DATA_W+RSV_ID_W)+INSTR_W+:RSV_ID_W];
-            store_buffer_n[i].data       <= i_data[2*(DATA_W+RSV_ID_W)+:DATA_W];
-            store_buffer_n[i].data_rob_id <= i_data[2*(DATA_W+RSV_ID_W)+DATA_W+:RSV_ID_W];
-            store_buffer_n[i].data_ready <= i_filled[2];
-            store_buffer_n[i].override <= 'b0;
-         end else if (store_buffer[i].valid &&
-                      cdb_valid &&
-                      store_buffer[i].data_rob_id == cdb[DATA_W+:RSV_ID_W]) begin
+         if (store_buffer_push) begin
+            if (i_valid && i_ready && i == tail) begin
+               store_buffer_n[i].valid      <= 'b1;
+               store_buffer_n[i].opcode     <= i_data[3*(DATA_W+RSV_ID_W)+:INSTR_W];
+               store_buffer_n[i].rob_id     <= i_data[3*(DATA_W+RSV_ID_W)+INSTR_W+:RSV_ID_W];
+               store_buffer_n[i].data       <= i_data[2*(DATA_W+RSV_ID_W)+:DATA_W];
+               store_buffer_n[i].data_rob_id <= i_data[2*(DATA_W+RSV_ID_W)+DATA_W+:RSV_ID_W];
+               store_buffer_n[i].data_ready <= i_filled[2];
+               store_buffer_n[i].override <= 'b0;
+            end
+         end
+         if (store_buffer[i].valid &&
+                  cdb_valid &&
+                  store_buffer[i].data_rob_id == cdb[DATA_W+:RSV_ID_W]) begin
             store_buffer_n[i].data <= cdb[DATA_W-1:0];
             store_buffer_n[i].data_ready <= 'b1;
          end
          if (address_valid &&
-             address[2*DATA_W+INSTR_W+:RSV_ID_W] == store_buffer[i].rob_id) begin
+             address[2*DATA_W+INSTR_W+:RSV_ID_W] == store_buffer[i].rob_id &&
+             store_buffer[i].valid) begin
             store_buffer_n[i].address <= computed_address;
             store_buffer_n[i].addr_ready <= 'b1;
          end else if (address_valid &&
@@ -211,7 +244,7 @@ module memory_functional_unit
              store_commit_id == store_buffer[i].rob_id) begin
             store_buffer_n[i].committed <= 'b1;
          end
-         if (o_valid && o_ready && i == head) begin
+         if (store_buffer_pop && i == head) begin
             store_buffer_n[i] <= 'b0;
          end
       end
