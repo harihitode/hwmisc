@@ -36,7 +36,7 @@ module core
    logic                          halt = 'b0;
 
    // common data bus
-   localparam N_UNITS = 2;
+   localparam N_UNITS = 3;
    localparam N_REG_RD_PORTS = 3;
    localparam N_ROB_RD_PORTS = 6;
    logic [CDB_W-1:0]              cdb = 'b0;
@@ -96,8 +96,10 @@ module core
    wire [DATA_W-1:0]                                o_mfu_data;
    wire [DATA_W-1:0]                                o_mfu_addr;
    wire [INSTR_W-1:0]                               o_mfu_opcode;
-   logic                                            o_mfu_ready = 'b1;
+   wire                                             o_mfu_ready;
 
+   wire [CDB_W-1:0]                                 mmu_cdb;
+   wire                                             mmu_cdb_ready;
    assign cdb_valid = |units_cdb_valid;
 
    always_comb begin
@@ -105,6 +107,8 @@ module core
          cdb <= alu_cdb;
       end else if (units_cdb_valid[1]) begin
          cdb <= mfu_cdb;
+      end else if (units_cdb_valid[2]) begin
+         cdb <= mmu_cdb;
       end else begin
          cdb <= 'b0;
       end
@@ -278,6 +282,7 @@ module core
 
    assign alu_cdb_ready = units_cdb_ready[0];
    assign mfu_cdb_ready = units_cdb_ready[1];
+   assign mmu_cdb_ready = units_cdb_ready[2];
 
    assign reg_wr_addr = commit_data.dst_reg;
    assign reg_wr_data = commit_data.content;
@@ -401,6 +406,35 @@ module core
       .o_ready(commit_ready),
       .cdb_valid(cdb_valid),
       .cdb(cdb),
+      .nrst(nrst)
+      );
+
+   memory_management_unit mmu
+     (
+      .clk(clk),
+
+      .rsv_id(o_mfu_rsv_id),
+      .valid(o_mfu_valid),
+      .data(o_mfu_data),
+      .address(o_mfu_addr),
+      .opcode(o_mfu_opcode),
+      .ready(o_mfu_ready),
+
+      .io_o_data(io_o_data),
+      .io_o_valid(io_o_valid),
+      .io_o_ready(io_o_ready),
+
+      .io_i_data(io_i_data),
+      .io_i_valid(io_i_valid),
+      .io_i_ready(io_i_ready),
+
+      .cdb(cdb),
+      .cdb_valid(cdb_valid),
+
+      .o_cdb(mmu_cdb),
+      .o_cdb_valid(units_cdb_valid[2]),
+      .o_cdb_ready(mmu_cdb_ready),
+
       .nrst(nrst)
       );
 
