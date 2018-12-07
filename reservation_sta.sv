@@ -48,7 +48,7 @@ module reservation_station
    end end
    endgenerate
 
-   always_latch delete_check : begin
+   always_comb delete_check : begin
       for (int i = 0; i < 2**N_STATIONS_W; i++) begin
          delete_st <= i;
          if (station_valid[i] && station_ordered[i]) begin
@@ -77,15 +77,20 @@ module reservation_station
    end // always_comb
 
    generate begin for (genvar i = 0; i < 2**N_STATIONS_W; i++) begin
-      always_latch begin
-         if (i == empty_st && i_valid && i_ready) begin
+      always_comb begin
+         station_valid_n[i] <= station_valid[i];
+         station_ordered_n[i] <= station_ordered[i];
+         station_n[i] <= station[i];
+         station_filled_n[i] <= station_filled[i];
+         station_data_n[i] <= station_data[i];
+         if ((i == empty_st) && i_valid && i_ready) begin
             // new entry
             station_valid_n[i] <= 'b1;
             station_ordered_n[i] <= 'b1; // TODO
             station_n[i] <= {i_data[N_OPERANDS*(RSV_ID_W+DATA_W)+:RSV_ID_W+INSTR_W], {(RSV_ID_W){1'b0}}};
             station_filled_n[i] <= i_filled;
             station_data_n[i] <= i_data[0+:N_OPERANDS*(RSV_ID_W+DATA_W)];
-         end else if (i == delete_st && o_valid && o_ready) begin
+         end else if ((i == delete_st) && o_valid && o_ready) begin
             // delete entry
             station_valid_n[i] <= 'b0;
             station_ordered_n[i] <= 'b0;
