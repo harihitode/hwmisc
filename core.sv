@@ -10,14 +10,17 @@ module core
    output logic [CRAM_ADDR_W-1:0] cram_addr,
    input logic [DATA_W-1:0]       cram_data,
    // }
-   // I/O {
-   output logic [7:0]             io_o_data,
-   output logic                   io_o_valid,
-   input logic                    io_o_ready,
+   // to MMU {
+   output logic [RSV_ID_W-1:0]    mmu_rsv_id,
+   output logic                   mmu_valid,
+   output logic [DATA_W-1:0]      mmu_data,
+   output logic [DATA_W-1:0]      mmu_addr,
+   output logic [INSTR_W-1:0]     mmu_opcode,
+   input logic                    mmu_ready,
 
-   input logic [7:0]              io_i_data,
-   input logic                    io_i_valid,
-   output logic                   io_i_ready,
+   input logic [CDB_W-1:0]        mmu_cdb,
+   input logic                    mmu_cdb_valid,
+   output logic                   mmu_cdb_ready,
    // }
    input                          nrst
    );
@@ -98,8 +101,7 @@ module core
    wire [INSTR_W-1:0]                               o_mfu_opcode;
    wire                                             o_mfu_ready;
 
-   wire [CDB_W-1:0]                                 mmu_cdb;
-   wire                                             mmu_cdb_ready;
+   assign units_cdb_valid[2] = mmu_cdb_valid;
    assign cdb_valid = |units_cdb_valid;
 
    always_comb begin
@@ -409,33 +411,11 @@ module core
       .nrst(nrst)
       );
 
-   memory_management_unit mmu
-     (
-      .clk(clk),
-
-      .rsv_id(o_mfu_rsv_id),
-      .valid(o_mfu_valid),
-      .data(o_mfu_data),
-      .address(o_mfu_addr),
-      .opcode(o_mfu_opcode),
-      .ready(o_mfu_ready),
-
-      .io_o_data(io_o_data),
-      .io_o_valid(io_o_valid),
-      .io_o_ready(io_o_ready),
-
-      .io_i_data(io_i_data),
-      .io_i_valid(io_i_valid),
-      .io_i_ready(io_i_ready),
-
-      .cdb(cdb),
-      .cdb_valid(cdb_valid),
-
-      .o_cdb(mmu_cdb),
-      .o_cdb_valid(units_cdb_valid[2]),
-      .o_cdb_ready(mmu_cdb_ready),
-
-      .nrst(nrst)
-      );
+   assign mmu_rsv_id = o_mfu_rsv_id;
+   assign mmu_valid = o_mfu_valid;
+   assign mmu_data = o_mfu_data;
+   assign mmu_addr = o_mfu_addr;
+   assign mmu_opcode = o_mfu_opcode;
+   assign o_mfu_ready = mmu_ready;
 
 endmodule
