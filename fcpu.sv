@@ -31,39 +31,41 @@ module fcpu
 
    output        init_calib_complete,
    output        tg_compare_error,
-   input         sys_rst_n
+   input         sys_rst_n,
+   output        ui_clk
    );
 
    wire          nrst;
    wire          mmcm_locked;
-   wire          ui_clk;
+   wire          ui_clk_i;
    assign tg_compare_error = 'b0;
    assign nrst = sys_rst_n & mmcm_locked & init_calib_complete;
+   assign ui_clk = ui_clk_i;
   // assign nrst = sys_rst_n & mmcm_locked;
 
    logic [2**CRAM_ADDR_W-1:0][DATA_W-1:0] cram = '0;
    wire [CRAM_ADDR_W-1:0]                 cram_addr;
    logic [DATA_W-1:0]                     cram_data = '0;
 
-   always_ff @(posedge ui_clk) begin
+   always_ff @(posedge ui_clk_i) begin
       cram_data <= cram[$unsigned(cram_addr)];
    end
 
    initial begin
-      // cram[0] <= {I_INPUT, 5'h01, 21'h4};
-      // cram[1] <= {I_OUTPUT, 5'h01, 21'h4};
-      cram[0] <= {I_SETI2, 5'h01, 21'h4};
-      cram[1] <= {I_SETI2, 5'h02, 21'h4};
-      cram[2] <= {I_SETI2, 5'h03, 21'h777};
-      cram[3] <= {I_SETI2, 5'h04, 21'h999};
-      cram[4] <= {I_STORER, 5'h03, 5'h02, 5'h01, 11'h0};
-      cram[5] <= {I_STORER, 5'h04, 5'h02, 5'h01, 11'h0};
-      cram[6] <= {I_LOADR , 5'h05, 5'h02, 5'h01, 11'h0};
-      cram[7] <= {I_LOADR , 5'h06, 5'h02, 5'h01, 11'h0};
-      cram[8] <= {I_LOADR , 5'h07, 5'h02, 5'h01, 11'h0};
-      cram[9] <= {I_LOADR , 5'h08, 5'h02, 5'h01, 11'h0};
-      cram[10] <= {I_LOADR , 5'h09, 5'h02, 5'h01, 11'h0};
-      cram[11] <= {I_LOADR , 5'h0a, 5'h02, 5'h01, 11'h0};
+      cram[0] <= {I_INPUT, 5'h01, 21'h4};
+      cram[1] <= {I_OUTPUT, 5'h01, 21'h4};
+      // cram[0] <= {I_SETI2, 5'h01, 21'h4};
+      // cram[1] <= {I_SETI2, 5'h02, 21'h4};
+      // cram[2] <= {I_SETI2, 5'h03, 21'h777};
+      // cram[3] <= {I_SETI2, 5'h04, 21'h999};
+      // cram[4] <= {I_STORER, 5'h03, 5'h02, 5'h01, 11'h0};
+      // cram[5] <= {I_STORER, 5'h04, 5'h02, 5'h01, 11'h0};
+      // cram[6] <= {I_LOADR , 5'h05, 5'h02, 5'h01, 11'h0};
+      // cram[7] <= {I_LOADR , 5'h06, 5'h02, 5'h01, 11'h0};
+      // cram[8] <= {I_LOADR , 5'h07, 5'h02, 5'h01, 11'h0};
+      // cram[9] <= {I_LOADR , 5'h08, 5'h02, 5'h01, 11'h0};
+      // cram[10] <= {I_LOADR , 5'h09, 5'h02, 5'h01, 11'h0};
+      // cram[11] <= {I_LOADR , 5'h0a, 5'h02, 5'h01, 11'h0};
    end
 
    wire [7:0] io_o_data;
@@ -131,13 +133,13 @@ module fcpu
    core core_inst
      (
       .*,
-      .clk(ui_clk)
+      .clk(ui_clk_i)
       );
 
    memory_management_unit mmu_inst
      (
       .*,
-      .clk(ui_clk),
+      .clk(ui_clk_i),
 
       .rsv_id(mmu_rsv_id),
       .valid(mmu_valid),
@@ -163,7 +165,7 @@ module fcpu
 
    serial_interface serial_if_inst
      (
-      .clk(ui_clk),
+      .clk(ui_clk_i),
       .uart_txd_in(uart_txd_in),
       .uart_rxd_out(uart_rxd_out),
 
@@ -181,7 +183,7 @@ module fcpu
    mig_7series_0 mem_if_inst
      (
       .*,
-      .ui_clk(ui_clk),
+      .ui_clk(ui_clk_i),
       .ui_clk_sync_rst(),
       .mmcm_locked(mmcm_locked),
       .aresetn('b1),
