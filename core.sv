@@ -4,25 +4,43 @@ import fcpu_pkg::*;
 
 module core
   (
-   input logic                    clk,
+   input logic                 clk,
 
    // code ram {
-   output logic [CRAM_ADDR_W-1:0] cram_addr,
-   input logic [DATA_W-1:0]       cram_data,
+   // Slave Interface Read Address Ports
+   output logic [3:0]          s_cram_arid,
+   output logic [31:0]         s_cram_araddr,
+   output logic [7:0]          s_cram_arlen,
+   output logic [2:0]          s_cram_arsize,
+   output logic [1:0]          s_cram_arburst,
+   output logic [0:0]          s_cram_arlock,
+   output logic [3:0]          s_cram_arcache,
+   output logic [2:0]          s_cram_arprot,
+   output logic [3:0]          s_cram_arqos,
+   output logic                s_cram_arvalid,
+   input logic                 s_cram_arready,
+
+   // Slave Interface Read Data Ports
+   output logic                s_cram_rready,
+   input logic [3:0]           s_cram_rid,
+   input logic [31:0]          s_cram_rdata,
+   input logic [1:0]           s_cram_rresp,
+   input logic                 s_cram_rlast,
+   input logic                 s_cram_rvalid,
    // }
    // to MMU {
-   output logic [RSV_ID_W-1:0]    mmu_rsv_id,
-   output logic                   mmu_valid,
-   output logic [DATA_W-1:0]      mmu_data,
-   output logic [DATA_W-1:0]      mmu_addr,
-   output logic [INSTR_W-1:0]     mmu_opcode,
-   input logic                    mmu_ready,
+   output logic [RSV_ID_W-1:0] mmu_rsv_id,
+   output logic                mmu_valid,
+   output logic [DATA_W-1:0]   mmu_data,
+   output logic [DATA_W-1:0]   mmu_addr,
+   output logic [INSTR_W-1:0]  mmu_opcode,
+   input logic                 mmu_ready,
 
-   input logic [CDB_W-1:0]        mmu_cdb,
-   input logic                    mmu_cdb_valid,
-   output logic                   mmu_cdb_ready,
+   input logic [CDB_W-1:0]     mmu_cdb,
+   input logic                 mmu_cdb_valid,
+   output logic                mmu_cdb_ready,
    // }
-   input                          nrst
+   input                       nrst
    );
 
    logic                          take_flag = '0;
