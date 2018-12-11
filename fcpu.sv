@@ -41,32 +41,64 @@ module fcpu
    assign tg_compare_error = 'b0;
    assign nrst = sys_rst_n & mmcm_locked & init_calib_complete;
    assign ui_clk = ui_clk_i;
-  // assign nrst = sys_rst_n & mmcm_locked;
 
-   logic [2**CRAM_ADDR_W-1:0][DATA_W-1:0] cram = '0;
-   wire [CRAM_ADDR_W-1:0]                 cram_addr;
-   logic [DATA_W-1:0]                     cram_data = '0;
+   // cram addr ports
+   wire [3:0]                             s_cram_arid;
+   wire [31:0]                            s_cram_araddr;
+   wire [7:0]                             s_cram_arlen;
+   wire [2:0]                             s_cram_arsize;
+   wire [1:0]                             s_cram_arburst;
+   wire [0:0]                             s_cram_arlock;
+   wire [3:0]                             s_cram_arcache;
+   wire [2:0]                             s_cram_arprot;
+   wire [3:0]                             s_cram_arqos;
+   wire                                   s_cram_arvalid;
+   wire                                   s_cram_arready;
 
-   always_ff @(posedge ui_clk_i) begin
-      cram_data <= cram[$unsigned(cram_addr)];
-   end
+   // cram data ports
+   wire                                   s_cram_rready;
+   wire [3:0]                             s_cram_rid;
+   wire [31:0]                            s_cram_rdata;
+   wire [1:0]                             s_cram_rresp;
+   wire                                   s_cram_rlast;
+   wire                                   s_cram_rvalid;
 
-   initial begin
-      cram[0] <= {I_INPUT, 5'h01, 21'h4};
-      cram[1] <= {I_OUTPUT, 5'h01, 21'h4};
-      // cram[0] <= {I_SETI2, 5'h01, 21'h4};
-      // cram[1] <= {I_SETI2, 5'h02, 21'h4};
-      // cram[2] <= {I_SETI2, 5'h03, 21'h777};
-      // cram[3] <= {I_SETI2, 5'h04, 21'h999};
-      // cram[4] <= {I_STORER, 5'h03, 5'h02, 5'h01, 11'h0};
-      // cram[5] <= {I_STORER, 5'h04, 5'h02, 5'h01, 11'h0};
-      // cram[6] <= {I_LOADR , 5'h05, 5'h02, 5'h01, 11'h0};
-      // cram[7] <= {I_LOADR , 5'h06, 5'h02, 5'h01, 11'h0};
-      // cram[8] <= {I_LOADR , 5'h07, 5'h02, 5'h01, 11'h0};
-      // cram[9] <= {I_LOADR , 5'h08, 5'h02, 5'h01, 11'h0};
-      // cram[10] <= {I_LOADR , 5'h09, 5'h02, 5'h01, 11'h0};
-      // cram[11] <= {I_LOADR , 5'h0a, 5'h02, 5'h01, 11'h0};
-   end
+   blk_mem_gen_0 cram_inst
+     (
+      .s_aclk(ui_clk_i),
+      .s_axi_arid(s_cram_arid),
+      .s_axi_araddr(s_cram_araddr),
+      .s_axi_arlen(s_cram_arlen),
+      .s_axi_arsize(s_cram_arsize),
+      .s_axi_arburst(s_cram_arburst),
+      .s_axi_arvalid(s_cram_arvalid),
+      .s_axi_arready(s_cram_arready),
+      .s_axi_rid(s_cram_rid),
+      .s_axi_rdata(s_cram_rdata),
+      .s_axi_rresp(s_cram_rresp),
+      .s_axi_rlast(s_cram_rlast),
+      .s_axi_rvalid(s_cram_rvalid),
+      .s_axi_rready(s_cram_rready),
+      .s_aresetn('b1),
+      .s_axi_awid('b0),
+      .s_axi_awaddr('b0),
+      .s_axi_awlen('b0),
+      .s_axi_awsize('b0),
+      .s_axi_awburst('b1),
+      .s_axi_awvalid('b0),
+      .s_axi_awready(),
+      .s_axi_wdata('b0),
+      .s_axi_wstrb('b0),
+      .s_axi_wlast('b0),
+      .s_axi_wvalid('b0),
+      .s_axi_wready(),
+      .s_axi_bid(),
+      .s_axi_bresp(),
+      .s_axi_bvalid(),
+      .s_axi_bready('b1),
+      .rsta_busy(),
+      .rstb_busy()
+      );
 
    wire [7:0] io_o_data;
    wire       io_o_valid;
@@ -163,7 +195,8 @@ module fcpu
       .nrst(nrst)
       );
 
-   serial_interface serial_if_inst
+   serial_interface
+   serial_if_inst
      (
       .clk(ui_clk_i),
       .uart_txd_in(uart_txd_in),
