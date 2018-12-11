@@ -57,6 +57,7 @@ module memory_functional_unit
    logic                                  address_ready = 'b0;
    logic                                  address_store = 'b0;
    logic                                  load_bypassing = 'b0;
+   logic [STORE_BUFFER_SIZE-1:0]          load_bypassing_vec = 'b0;
    logic                                  load_forwarding = 'b0;
    logic [DATA_W-1:0]                     computed_address = 'b0;
 
@@ -87,16 +88,22 @@ module memory_functional_unit
       end
    end // always_comb
 
-   always_comb begin
-      load_bypassing <= 'b0;
-      if (address_valid && !address_store) begin
-         load_bypassing <= 'b1;
-         for (int i = 0; i < STORE_BUFFER_SIZE; i++) begin
-            if (computed_address == store_buffer[i].address) begin
-               load_bypassing <= 'b0;
-               break;
-            end
+   generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
+      always_comb begin
+         if (computed_address == store_buffer[i].address) begin
+            load_bypassing_vec[i] <= 'b0;
+         end else begin
+            load_bypassing_vec[i] <= 'b1;
          end
+      end
+   end end
+   endgenerate
+
+   always_comb begin
+      if (address_valid && !address_store) begin
+         load_bypassing <= &load_bypassing_vec;
+      end else begin
+         load_bypassing <= 'b0;
       end
    end // always_comb
 
@@ -226,8 +233,8 @@ module memory_functional_unit
             end
          end
          if (store_buffer[i].valid &&
-                  cdb_valid &&
-                  store_buffer[i].data_rob_id == cdb[DATA_W+:RSV_ID_W]) begin
+             cdb_valid &&
+             store_buffer[i].data_rob_id == cdb[DATA_W+:RSV_ID_W]) begin
             store_buffer_n[i].data <= cdb[DATA_W-1:0];
             store_buffer_n[i].data_ready <= 'b1;
          end
