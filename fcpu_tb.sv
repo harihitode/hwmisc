@@ -20,7 +20,9 @@ module fcpu_tb ();
    wire        recv_valid;
    logic       recv_ready = 'b1;
 
-   fcpu fcpu_inst
+   fcpu
+     #(.WTIME(16'h40))
+   fcpu_inst
      (
       .*,
       .uart_txd_in(rs_tx_in),
