@@ -3,65 +3,66 @@
 import fcpu_pkg::*;
 
 module fcpu
-  (
-   // serial
-   input         uart_txd_in,
-   output        uart_rxd_out,
-   // DDR
-   inout [15:0]  ddr3_dq,
-   inout [1:0]   ddr3_dqs_n,
-   inout [1:0]   ddr3_dqs_p,
-   // Outputs
-   output [13:0] ddr3_addr,
-   output [2:0]  ddr3_ba,
-   output        ddr3_ras_n,
-   output        ddr3_cas_n,
-   output        ddr3_we_n,
-   output        ddr3_reset_n,
-   output [0:0]  ddr3_ck_p,
-   output [0:0]  ddr3_ck_n,
-   output [0:0]  ddr3_cke,
-   output [0:0]  ddr3_cs_n,
-   output [1:0]  ddr3_dm,
-   output [0:0]  ddr3_odt,
-   // clk & reset
-   input         sys_clk_i,
-   input         clk_ref_i,
-   input [11:0]  device_temp_i,
+  #(parameter logic [15:0] WTIME = 16'h364)
+   (
+    // serial
+    input         uart_txd_in,
+    output        uart_rxd_out,
+    // DDR
+    inout [15:0]  ddr3_dq,
+    inout [1:0]   ddr3_dqs_n,
+    inout [1:0]   ddr3_dqs_p,
+    // Outputs
+    output [13:0] ddr3_addr,
+    output [2:0]  ddr3_ba,
+    output        ddr3_ras_n,
+    output        ddr3_cas_n,
+    output        ddr3_we_n,
+    output        ddr3_reset_n,
+    output [0:0]  ddr3_ck_p,
+    output [0:0]  ddr3_ck_n,
+    output [0:0]  ddr3_cke,
+    output [0:0]  ddr3_cs_n,
+    output [1:0]  ddr3_dm,
+    output [0:0]  ddr3_odt,
+    // clk & reset
+    input         sys_clk_i,
+    input         clk_ref_i,
+    input [11:0]  device_temp_i,
 
-   output        init_calib_complete,
-   output        tg_compare_error,
-   input         sys_rst_n,
-   output        ui_clk
-   );
+    output        init_calib_complete,
+    output        tg_compare_error,
+    input         sys_rst_n,
+    output        ui_clk
+    );
 
-   wire          nrst;
-   wire          mmcm_locked;
-   wire          ui_clk_i;
+   wire           nrst;
+   wire           mmcm_locked;
+   wire           ui_clk_i;
    assign tg_compare_error = 'b0;
-   assign nrst = sys_rst_n & mmcm_locked & init_calib_complete;
+   assign nrst = sys_rst_n & mmcm_locked;
    assign ui_clk = ui_clk_i;
 
    // cram addr ports
-   wire [3:0]                             s_cram_arid;
-   wire [31:0]                            s_cram_araddr;
-   wire [7:0]                             s_cram_arlen;
-   wire [2:0]                             s_cram_arsize;
-   wire [1:0]                             s_cram_arburst;
-   wire [0:0]                             s_cram_arlock;
-   wire [3:0]                             s_cram_arcache;
-   wire [2:0]                             s_cram_arprot;
-   wire [3:0]                             s_cram_arqos;
-   wire                                   s_cram_arvalid;
-   wire                                   s_cram_arready;
+   wire [3:0]     s_cram_arid;
+   wire [31:0]    s_cram_araddr;
+   wire [7:0]     s_cram_arlen;
+   wire [2:0]     s_cram_arsize;
+   wire [1:0]     s_cram_arburst;
+   wire [0:0]     s_cram_arlock;
+   wire [3:0]     s_cram_arcache;
+   wire [2:0]     s_cram_arprot;
+   wire [3:0]     s_cram_arqos;
+   wire           s_cram_arvalid;
+   wire           s_cram_arready;
 
    // cram data ports
-   wire                                   s_cram_rready;
-   wire [3:0]                             s_cram_rid;
-   wire [31:0]                            s_cram_rdata;
-   wire [1:0]                             s_cram_rresp;
-   wire                                   s_cram_rlast;
-   wire                                   s_cram_rvalid;
+   wire           s_cram_rready;
+   wire [3:0]     s_cram_rid;
+   wire [31:0]    s_cram_rdata;
+   wire [1:0]     s_cram_rresp;
+   wire           s_cram_rlast;
+   wire           s_cram_rvalid;
 
    blk_mem_gen_0 cram_inst
      (
@@ -196,6 +197,7 @@ module fcpu
       );
 
    serial_interface
+     #(.WTIME(WTIME))
    serial_if_inst
      (
       .clk(ui_clk_i),
