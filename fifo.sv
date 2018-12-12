@@ -50,7 +50,7 @@ module fifo
               full <= 0;
            end
            FIFO_W: begin // when write, there are full danger
-              if (read_pos - 1 == write_pos) full <= 1;
+              if ($unsigned(read_pos) == $unsigned((FIFO_DEPTH_W)'(write_pos + 'b1))) full <= 1;
            end
            default: begin
               full <= full;
