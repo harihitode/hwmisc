@@ -76,6 +76,51 @@ module fcpu_top
    wire             s_cram_rlast;
    wire             s_cram_rvalid;
 
+   // Slave Interface Write Data Ports
+   wire [3:0]       s_axi_awid;
+   wire [27:0]      s_axi_awaddr;
+   wire [7:0]       s_axi_awlen;
+   wire [2:0]       s_axi_awsize;
+   wire [1:0]       s_axi_awburst;
+   wire [0:0]       s_axi_awlock;
+   wire [3:0]       s_axi_awcache;
+   wire [2:0]       s_axi_awprot;
+   wire [3:0]       s_axi_awqos;
+   wire             s_axi_awvalid;
+   wire             s_axi_awready;
+   // Slave Interface Write Data Ports
+   wire [127:0]     s_axi_wdata;
+   wire [15:0]      s_axi_wstrb;
+   wire             s_axi_wlast;
+   wire             s_axi_wvalid;
+   wire             s_axi_wready;
+   // Slave Interface Write Response Ports
+   wire             s_axi_bready;
+   wire [3:0]       s_axi_bid;
+   wire [1:0]       s_axi_bresp;
+   wire             s_axi_bvalid;
+   // Slave Interface Read Address Ports
+   wire [3:0]       s_axi_arid;
+   wire [27:0]      s_axi_araddr;
+   wire [7:0]       s_axi_arlen;
+   wire [2:0]       s_axi_arsize;
+   wire [1:0]       s_axi_arburst;
+   wire [0:0]       s_axi_arlock;
+   wire [3:0]       s_axi_arcache;
+   wire [2:0]       s_axi_arprot;
+   wire [3:0]       s_axi_arqos;
+   wire             s_axi_arvalid;
+   wire             s_axi_arready;
+   // Slave Interface Read Data Ports
+   wire             s_axi_rready;
+   wire [3:0]       s_axi_rid;
+   wire [127:0]     s_axi_rdata;
+   wire [1:0]       s_axi_rresp;
+   wire             s_axi_rlast;
+   wire             s_axi_rvalid;
+
+   wire             mmcm_locked;
+
    always_ff @(posedge ui_clk) begin
       if (btn[0]) begin
          io_wvalid_i <= 1'b1;
@@ -96,7 +141,7 @@ module fcpu_top
       led[3] <= 1'b1;
    end
 
-   assign sys_rst_n = locked & ck_rst;
+   assign sys_rst_n = locked & mmcm_locked & ck_rst;
 
    IBUF tx_buf (.I(uart_txd_in), .O(uart_txd_in_d));
    OBUF rx_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
@@ -110,6 +155,7 @@ module fcpu_top
 
    fcpu fcpu_inst
      (.*,
+      .clk(ui_clk),
       // {
       // write address
       .io_awid(),
@@ -154,13 +200,7 @@ module fcpu_top
       .io_rlast('b1),
       .io_rvalid(io_rvalid),
       // }
-      .sys_clk_i(sys_clk_i),
-      .clk_ref_i(clk_ref_i),
-      .device_temp_i('b0),
-      .init_calib_complete(init_calib_complete),
-      .tg_compare_error(),
-      .sys_rst_n(sys_rst_n),
-      .ui_clk(ui_clk)
+      .sys_rst_n(sys_rst_n)
       );
 
    serial_interface
@@ -217,6 +257,24 @@ module fcpu_top
       .s_axi_bready('b1),
       .rsta_busy(),
       .rstb_busy()
+      );
+
+   mig_7series_0 mem_if_inst
+     (
+      .*,
+      .ui_clk(ui_clk),
+      .ui_clk_sync_rst(),
+      .mmcm_locked(mmcm_locked),
+      .aresetn('b1),
+      .app_sr_req('b0),
+      .app_ref_req('b0),
+      .app_zq_req('b0),
+      .app_sr_active(),
+      .app_ref_ack(),
+      .app_zq_ack(),
+      .device_temp(),
+      .device_temp_i(12'b0),
+      .sys_rst(ck_rst) // negative
       );
 
 endmodule
