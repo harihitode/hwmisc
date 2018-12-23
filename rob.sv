@@ -40,9 +40,9 @@ module reorder_buffer
    logic [2**N_ROB_W-1:0]                                      rob_release;
    logic [2**N_ROB_W-1:0]                                      rob_clear; // used by branch prediction miss
 
-   logic [N_ROB_W-1:0]                                         rob_tail = 'b0;
+   logic [N_ROB_W-1:0]                                         rob_tail = 'h0;
    logic [N_ROB_W-1:0]                                         rob_tail_n;
-   logic [N_ROB_W-1:0]                                         rob_head = 'b0;
+   logic [N_ROB_W-1:0]                                         rob_head = 'h0;
    logic [N_ROB_W-1:0]                                         rob_head_n;
 
    assign o_valid = head_station.valid & head_station.ready;
@@ -71,10 +71,10 @@ module reorder_buffer
 
    // ROB data read {
    generate begin for (genvar i = 0; i < ROB_PORT_W; i++) begin
-      always_comb begin
+      always_latch begin
          for (int j = 0; j < 2**N_ROB_W; j++) begin
             if (j == rob_id[i]) begin
-               rob_data[i] <= {station[j].station_id, station[j].content};
+               rob_data[i] <= {RSV_ID_W'(j), station[j].content};
                rob_data_filled[i] <= station[j].ready;
             end
          end
@@ -87,7 +87,7 @@ module reorder_buffer
    generate begin for (genvar i = 0; i < 2**N_ROB_W; i++) begin
       always_comb begin
          // reserve new rob station {
-         new_station[i].station_id <= (N_ROB_W)'(i);
+         new_station[i].station_id <= (N_STATIONS_W)'($unsigned(i));
          new_station[i].valid      <= 'b1;
          new_station[i].ready      <= i_no_wait;
          new_station[i].dst_reg    <= i_dst_reg;
@@ -106,7 +106,7 @@ module reorder_buffer
          update_station[i].opcode <= station[i].opcode;
 
          if (cdb_valid && $unsigned(cdb[DATA_W+:RSV_ID_W]) == i) begin
-            update_station[i].ready <= 'b1; // register valid
+            update_station[i].ready <= 'b1;
             update_station[i].content <= cdb[DATA_W-1:0];
          end else begin
             update_station[i].ready <= station[i].ready;
@@ -163,8 +163,8 @@ module reorder_buffer
          rob_head <= rob_head_n;
          rob_tail <= rob_tail_n;
       end else begin
-         rob_head <= '0;
-         rob_tail <= '0;
+         rob_head <= 'h0;
+         rob_tail <= 'h0;
       end
    end // always_ff @ (posedge clk)
 
