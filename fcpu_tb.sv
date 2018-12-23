@@ -12,7 +12,7 @@ module fcpu_tb ();
    wire  rs_rx_out;
    wire  clk;
 
-   logic [7:0] send_data  = 'hab;
+   logic [7:0] send_data = 'b0;
    logic       send_valid = 'b0;
    wire        send_ready;
 
@@ -20,13 +20,84 @@ module fcpu_tb ();
    wire        recv_valid;
    logic       recv_ready = 'b1;
 
-   fcpu
-     #(.WTIME(16'h40))
-   fcpu_inst
+   wire [7:0]  io_wdata;
+   wire        io_wvalid;
+   wire        io_wready;
+
+   wire [7:0]  io_rdata;
+   wire        io_rvalid;
+   wire        io_rready;
+
+   wire [3:0]  debug_signal;
+
+   // cram addr ports
+   wire [3:0]  s_cram_arid;
+   wire [31:0] s_cram_araddr;
+   wire [7:0]  s_cram_arlen;
+   wire [2:0]  s_cram_arsize;
+   wire [1:0]  s_cram_arburst;
+   wire [0:0]  s_cram_arlock;
+   wire [3:0]  s_cram_arcache;
+   wire [2:0]  s_cram_arprot;
+   wire [3:0]  s_cram_arqos;
+   wire        s_cram_arvalid;
+   wire        s_cram_arready;
+
+   // cram data ports
+   wire        s_cram_rready;
+   wire [3:0]  s_cram_rid;
+   wire [31:0] s_cram_rdata;
+   wire [1:0]  s_cram_rresp;
+   wire        s_cram_rlast;
+   wire        s_cram_rvalid;
+
+   fcpu fcpu_inst
      (
       .*,
-      .uart_txd_in(rs_tx_in),
-      .uart_rxd_out(rs_rx_out),
+      // {
+      // write address
+      .io_awid(),
+      .io_awaddr(),
+      .io_awlen(),
+      .io_awsize(),
+      .io_awburst(),
+      .io_awlock(),
+      .io_awcache(),
+      .io_awprot(),
+      .io_awqos(),
+      .io_awvalid(),
+      .io_awready(1'b1),
+      // write data
+      .io_wdata(io_wdata),
+      .io_wstrb(),
+      .io_wlast(),
+      .io_wvalid(io_wvalid),
+      .io_wready(io_wready),
+      // response
+      .io_bready(),
+      .io_bid('b0),
+      .io_bresp('b0),
+      .io_bvalid('b0),
+      // read address
+      .io_arid(),
+      .io_araddr(),
+      .io_arlen(),
+      .io_arsize(),
+      .io_arburst(),
+      .io_arlock(),
+      .io_arcache(),
+      .io_arprot(),
+      .io_arqos(),
+      .io_arvalid(),
+      .io_arready(1'b1),
+      // read data
+      .io_rready(io_rready),
+      .io_rid('b0),
+      .io_rdata(io_rdata),
+      .io_rresp('b0),
+      .io_rlast('b1),
+      .io_rvalid(io_rvalid),
+      // }
 
       .ddr3_dq(),
       .ddr3_dqs_n(),
@@ -55,7 +126,26 @@ module fcpu_tb ();
       );
 
    serial_interface
-     #(.WTIME(16'h40))
+     #(.WTIME(16'h0030))
+   serial_device_side
+     (
+      .clk(clk),
+      .uart_txd_in(rs_tx_in),
+      .uart_rxd_out(rs_rx_out),
+
+      .i_data(io_wdata),
+      .i_valid(io_wvalid),
+      .i_ready(io_wready),
+
+      .o_data(io_rdata),
+      .o_valid(io_rvalid),
+      .o_ready(io_rready),
+
+      .nrst(nrst)
+      );
+
+   serial_interface
+     #(.WTIME(16'h0030))
    serial_pc_side
      (
       .clk(clk),
@@ -73,10 +163,75 @@ module fcpu_tb ();
       .nrst(nrst)
       );
 
+   blk_mem_gen_0 cram_inst
+     (
+      .s_aclk(clk),
+      .s_axi_arid(s_cram_arid),
+      .s_axi_araddr(s_cram_araddr),
+      .s_axi_arlen(s_cram_arlen),
+      .s_axi_arsize(s_cram_arsize),
+      .s_axi_arburst(s_cram_arburst),
+      .s_axi_arvalid(s_cram_arvalid),
+      .s_axi_arready(s_cram_arready),
+      .s_axi_rid(s_cram_rid),
+      .s_axi_rdata(s_cram_rdata),
+      .s_axi_rresp(s_cram_rresp),
+      .s_axi_rlast(s_cram_rlast),
+      .s_axi_rvalid(s_cram_rvalid),
+      .s_axi_rready(s_cram_rready),
+      .s_aresetn('b1),
+      .s_axi_awid('b0),
+      .s_axi_awaddr('b0),
+      .s_axi_awlen('b0),
+      .s_axi_awsize('b0),
+      .s_axi_awburst('b1),
+      .s_axi_awvalid('b0),
+      .s_axi_awready(),
+      .s_axi_wdata('b0),
+      .s_axi_wstrb('b0),
+      .s_axi_wlast('b0),
+      .s_axi_wvalid('b0),
+      .s_axi_wready(),
+      .s_axi_bid(),
+      .s_axi_bresp(),
+      .s_axi_bvalid(),
+      .s_axi_bready('b1),
+      .rsta_busy(),
+      .rstb_busy()
+      );
+
    initial begin
-      #50 nrst <= 'b1;
-      #100;
+      #5000 nrst <= 'b1;
+      #7000 nrst <= 'b0;
+      #5000 nrst <= 'b1;
+      #15000;
       send_valid <= 'b1;
+      send_data <='h11;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h22;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h33;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h44;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h55;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h66;
       @(posedge clk);
       send_valid <= 'b0;
    end
