@@ -28,8 +28,6 @@ module fcpu_tb ();
    wire        io_rvalid;
    wire        io_rready;
 
-   wire [3:0]  debug_signal;
-
    // cram addr ports
    wire [3:0]  s_cram_arid;
    wire [31:0] s_cram_araddr;
