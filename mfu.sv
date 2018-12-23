@@ -55,19 +55,19 @@ module memory_functional_unit
    wire                        address_valid;
    wire                        p_address_valid;
    wire [RSV_ID_W+INSTR_W+2*(DATA_W)-1:0] p_address;
-   wire [RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] p_computed_address;
-   wire [RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] address;
-   logic                                  address_ready = 'b0;
-   wire                                   p_address_ready;
-   logic                                  address_store = 'b0;
-   logic                                  load_bypassing = 'b0;
-   logic [STORE_BUFFER_SIZE-1:0]          load_bypassing_vec = 'b0;
-   logic                                  load_forwarding = 'b0;
-   logic [DATA_W-1:0]                     computed_address = 'b0;
+   wire [1+RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] p_computed_address;
+   wire [1+RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] address;
+   logic                                    address_ready = 'b0;
+   wire                                     p_address_ready;
+   logic                                    address_store = 'b0;
+   logic                                    p_address_store = 'b0;
+   logic                                    load_bypassing = 'b0;
+   logic [STORE_BUFFER_SIZE-1:0]            load_bypassing_vec = 'b0;
+   logic                                    load_forwarding = 'b0;
+   logic [DATA_W-1:0]                       computed_address = 'b0;
 
-   store_buffer_t store_buffer [STORE_BUFFER_SIZE-1:0] = '{default:'b0};
-   store_buffer_t store_buffer_n [STORE_BUFFER_SIZE-1:0] = '{default:'b0};
-   assign head_buffer = store_buffer[head];
+   store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer = 'b0;
+   store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer_n = 'b0;
 
    always_comb begin
       o_rsv_id <= 'b0;
@@ -82,32 +82,12 @@ module memory_functional_unit
          o_data <= head_buffer.data;
          o_address <= head_buffer.address;
          o_valid <= 'b1;
-      end else if (load_bypassing) begin
-         // load bypassig & load forwarding
+      end else if (address[$high(address)]) begin
          o_rsv_id <= address[3*DATA_W+INSTR_W+:RSV_ID_W];
          o_opcode <= address[3*DATA_W+:INSTR_W];
          o_data <= 'b0;
          o_address <= computed_address;
          o_valid <= 'b1;
-      end
-   end // always_comb
-
-   generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
-      always_comb begin
-         if (address[2*DATA_W+:DATA_W] == store_buffer[i].address) begin
-            load_bypassing_vec[i] <= 'b0;
-         end else begin
-            load_bypassing_vec[i] <= 'b1;
-         end
-      end
-   end end
-   endgenerate
-
-   always_comb begin
-      if (address_valid && !address_store) begin
-         load_bypassing <= &load_bypassing_vec;
-      end else begin
-         load_bypassing <= 'b0;
       end
    end // always_comb
 
@@ -122,7 +102,7 @@ module memory_functional_unit
                 !store_buffer[i].override) begin
                load_forwarding <= 'b1;
                o_cdb <= {address[3*DATA_W+INSTR_W+:RSV_ID_W], store_buffer[i].data};
-               o_cdb_valid <= 'b1;
+               o_cdb_valid <= o_ready;
             end
          end
       end
@@ -141,17 +121,23 @@ module memory_functional_unit
       endcase
    end
 
+   // for critical path
    always_comb begin
       if (address_store) begin
          address_ready <= 'b1;
       end else begin
-         address_ready <= (load_bypassing & o_ready) |
-                          (load_forwarding & o_cdb_ready);
+         if (head_buffer.valid & head_buffer.data_ready &
+             head_buffer.addr_ready & head_buffer.committed) begin
+            address_ready <= 'b0;
+         end else begin
+            address_ready <= (address[$high(address)] & o_ready) |
+                             (load_forwarding & o_cdb_ready);
+         end
       end
    end
 
    assign i_ready_storebuffer = (head_buffer.valid && (head == tail)) ? 'b0 : 'b1;
-   assign i_ready = i_ready_preaddress | i_ready_storebuffer;
+   assign i_ready = i_ready_preaddress & i_ready_storebuffer;
 
    logic store_buffer_push = 'b0;
    logic store_buffer_pop = 'b0;
@@ -209,12 +195,14 @@ module memory_functional_unit
    always_ff @(posedge clk) begin
       if (nrst) begin
          head <= head_n;
+         head_buffer <= store_buffer[head_n];
          tail <= tail_n;
          store_buffer <= store_buffer_n;
       end else begin
-         head <= 'b0;
-         tail <= 'b0;
-         store_buffer <= '{default:'b0};
+         head <= 0;
+         head_buffer <= 'b0;
+         tail <= 0;
+         store_buffer <= 'b0;
       end
    end // always_ff @ (posedge clk)
 
@@ -222,14 +210,14 @@ module memory_functional_unit
       always_comb begin
          store_buffer_n[i] <= store_buffer[i];
          if (store_buffer_push) begin
-            if (i_valid && i_ready && i == tail) begin
-               store_buffer_n[i].valid      <= 'b1;
-               store_buffer_n[i].opcode     <= i_data[3*(DATA_W+RSV_ID_W)+:INSTR_W];
-               store_buffer_n[i].rob_id     <= i_data[3*(DATA_W+RSV_ID_W)+INSTR_W+:RSV_ID_W];
-               store_buffer_n[i].data       <= i_data[2*(DATA_W+RSV_ID_W)+:DATA_W];
+            if (i_valid && i_ready && i == tail && !store_buffer[i].valid) begin
+               store_buffer_n[i].valid       <= 'b1;
+               store_buffer_n[i].opcode      <= i_data[3*(DATA_W+RSV_ID_W)+:INSTR_W];
+               store_buffer_n[i].rob_id      <= i_data[3*(DATA_W+RSV_ID_W)+INSTR_W+:RSV_ID_W];
+               store_buffer_n[i].data        <= i_data[2*(DATA_W+RSV_ID_W)+:DATA_W];
                store_buffer_n[i].data_rob_id <= i_data[2*(DATA_W+RSV_ID_W)+DATA_W+:RSV_ID_W];
-               store_buffer_n[i].data_ready <= i_filled[2];
-               store_buffer_n[i].override <= 'b0;
+               store_buffer_n[i].data_ready  <= i_filled[2];
+               store_buffer_n[i].override    <= 'b0;
             end
          end
          if (store_buffer[i].valid &&
@@ -238,20 +226,22 @@ module memory_functional_unit
             store_buffer_n[i].data <= cdb[DATA_W-1:0];
             store_buffer_n[i].data_ready <= 'b1;
          end
-         if (address_valid &&
-             address[3*DATA_W+INSTR_W+:RSV_ID_W] == store_buffer[i].rob_id &&
-             store_buffer[i].valid) begin
+         if (store_buffer[i].valid &&
+             address_valid &&
+             address[3*DATA_W+INSTR_W+:RSV_ID_W] == store_buffer[i].rob_id) begin
             store_buffer_n[i].address <= address[2*DATA_W+:DATA_W];
             store_buffer_n[i].addr_ready <= 'b1;
          end else if (address_valid &&
                       address[2*DATA_W+:DATA_W] == store_buffer[i].address) begin
             store_buffer_n[i].override <= 'b1;
          end
-         if (store_commit_valid &&
+         if (store_buffer[i].valid &&
+             store_commit_valid &&
              store_commit_id == store_buffer[i].rob_id) begin
             store_buffer_n[i].committed <= 'b1;
          end
-         if (store_buffer_pop && i == head) begin
+         if (store_buffer[i].valid &&
+             store_buffer_pop && i == head) begin
             store_buffer_n[i] <= 'b0;
          end
       end
@@ -259,8 +249,8 @@ module memory_functional_unit
    endgenerate
 
    fifo
-     #(.FIFO_DEPTH_W(1),
-       .DATA_W(RSV_ID_W+INSTR_W+3*(DATA_W)))
+     #(.FIFO_DEPTH_W(4),
+       .DATA_W(1+RSV_ID_W+INSTR_W+3*(DATA_W)))
    address_buffer
      (
       .clk(clk),
@@ -295,7 +285,41 @@ module memory_functional_unit
       .nrst(nrst)
       );
 
-   assign p_computed_address = {p_address[2*DATA_W+:INSTR_W+RSV_ID_W],
+   generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
+      always_comb begin
+         if (p_computed_address[2*DATA_W+:DATA_W] == store_buffer[i].address) begin
+            load_bypassing_vec[i] <= 'b0;
+         end else begin
+            load_bypassing_vec[i] <= 'b1;
+         end
+      end
+   end end
+   endgenerate
+
+   always_comb begin
+      if (p_address_valid && !p_address_store) begin
+         load_bypassing <= &load_bypassing_vec;
+      end else begin
+         load_bypassing <= 'b0;
+      end
+   end // always_comb
+
+   always_comb begin
+      case (p_computed_address[3*DATA_W+:INSTR_W])
+        I_STORE, I_STOREB, I_STORER,
+        I_STOREF, I_STOREBF, I_STORERF,
+        I_OUTPUT : begin
+           p_address_store <= 'b1;
+        end
+        default : begin
+           p_address_store <= 'b0;
+        end
+      endcase
+   end
+
+   assign p_computed_address = {
+                                load_bypassing,
+                                p_address[2*DATA_W+:INSTR_W+RSV_ID_W],
                                 p_address[0+:DATA_W] + p_address[DATA_W+:DATA_W],
                                 p_address[0+:2*DATA_W]
                                 };
