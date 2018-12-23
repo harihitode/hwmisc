@@ -39,11 +39,12 @@ module scheduler
 
    // to core
    output logic [CRAM_ADDR_W-1:0] o_current_pc,
+   output logic                   o_current_valid,
    output logic [DATA_W-1:0]      o_current_inst,
    output logic [CRAM_ADDR_W-1:0] o_taken_pc,
    output logic [CRAM_ADDR_W-1:0] o_untaken_pc,
 
-   input                          nrst
+   input logic                    nrst
    );
 
    localparam int                 NEXT_PC_WIDTH = 4;
@@ -57,17 +58,20 @@ module scheduler
    assign s_cram_arprot = 'b0;
    assign s_cram_arqos = 'b0;
 
-   assign s_cram_rready = nrst;
+   assign s_cram_rready = 'b1;
    assign s_cram_arvalid = nrst;
 
    typedef struct packed {
       logic [CRAM_ADDR_W-1:0] pc;
+      logic                   valid;
       logic                   take_flag;
       logic [DATA_W-1:0]      cram_data;
    } lut_t;
 
    logic [31:0]               s_cram_araddr_n;
-   logic [31:0]               s_cram_araddr_d;
+   logic [31:0]               s_cram_araddr_i = 'b0;
+   logic [31:0]               s_cram_araddr_d = 'b0;
+   logic                      ce_d = 'b1;
 
    lut_t [1:0] lut = 'b0;
    lut_t [1:0] lut_n;
@@ -79,7 +83,8 @@ module scheduler
          lut_n <= lut;
       end else begin
          if (s_cram_arvalid) begin
-            lut_n[$high(lut_n)] <= {s_cram_araddr_d,
+            lut_n[$high(lut_n)] <= {CRAM_ADDR_W'(s_cram_araddr_d),
+                                    s_cram_rvalid,
                                     take_flag,
                                     s_cram_rdata};
          end else begin
@@ -105,17 +110,18 @@ module scheduler
          s_cram_araddr_n <= pred_miss_dst;
       end else if (!ce) begin
          s_cram_araddr_n <= s_cram_araddr;
-      end else if (s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_JMP) begin
-         s_cram_araddr_n <= s_cram_rdata[21:0];
       end else if (branch_flag && take_flag) begin
          s_cram_araddr_n <= s_cram_rdata[14:0];
-      end else begin
+      end else if (s_cram_arvalid && s_cram_arready) begin
          s_cram_araddr_n <= s_cram_araddr + NEXT_PC_WIDTH;
+      end else begin
+         s_cram_araddr_n <= s_cram_araddr;
       end
    end // always_comb
 
-   assign o_current_pc   = lut[0].pc;
-   assign o_current_inst = lut[0].cram_data;
+   assign o_current_pc    = lut[0].pc;
+   assign o_current_valid = lut[0].valid;
+   assign o_current_inst  = lut[0].cram_data;
 
    always_comb begin
       if (branch_flag) begin
@@ -130,16 +136,27 @@ module scheduler
          o_taken_pc   <= '0;
          o_untaken_pc <= '0;
       end
+   end // always_comb
+
+   always_latch begin
+         if (!ce) begin
+            s_cram_araddr <= s_cram_araddr_d;
+         end else if (s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_JMP) begin
+            s_cram_araddr <= s_cram_rdata[21:0];
+         end else begin
+            s_cram_araddr <= s_cram_araddr_i;
+         end
    end
 
    always_ff @(posedge clk) begin
+      ce_d <= ce;
       if (nrst) begin
          lut <= lut_n;
-         s_cram_araddr <= s_cram_araddr_n;
+         s_cram_araddr_i <= s_cram_araddr_n;
          s_cram_araddr_d <= s_cram_araddr;
       end else begin
          lut <= 'b0;
-         s_cram_araddr <= 'b0;
+         s_cram_araddr_i <= 'b0;
          s_cram_araddr_d <= 'b0;
       end
    end
