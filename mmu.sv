@@ -58,13 +58,48 @@ module memory_management_unit
    input logic                s_axi_rvalid,
    // }
    // I/O {
-   output logic [7:0]         io_o_data,
-   output logic               io_o_valid,
-   input logic                io_o_ready,
-
-   input logic [7:0]          io_i_data,
-   input logic                io_i_valid,
-   output logic               io_i_ready,
+   // Slave Interface Write Address Ports
+   output logic [3:0]         io_awid,
+   output logic [27:0]        io_awaddr,
+   output logic [7:0]         io_awlen,
+   output logic [2:0]         io_awsize,
+   output logic [1:0]         io_awburst,
+   output logic [0:0]         io_awlock,
+   output logic [3:0]         io_awcache,
+   output logic [2:0]         io_awprot,
+   output logic [3:0]         io_awqos,
+   output logic               io_awvalid,
+   input logic                io_awready,
+   // Slave Interface Write Data Ports
+   output logic [7:0]         io_wdata,
+   output logic [15:0]        io_wstrb,
+   output logic               io_wlast,
+   output logic               io_wvalid,
+   input logic                io_wready,
+   // Slave Interface Write Response Ports
+   output logic               io_bready,
+   input logic [3:0]          io_bid,
+   input logic [1:0]          io_bresp,
+   input logic                io_bvalid,
+   // Slave Interface Read Address Ports
+   output logic [3:0]         io_arid,
+   output logic [27:0]        io_araddr,
+   output logic [7:0]         io_arlen,
+   output logic [2:0]         io_arsize,
+   output logic [1:0]         io_arburst,
+   output logic [0:0]         io_arlock,
+   output logic [3:0]         io_arcache,
+   output logic [2:0]         io_arprot,
+   output logic [3:0]         io_arqos,
+   output logic               io_arvalid,
+   input logic                io_arready,
+   // Slave Interface Read Data Ports
+   output logic               io_rready,
+   input logic [3:0]          io_rid,
+   input logic [7:0]          io_rdata,
+   input logic [1:0]          io_rresp,
+   input logic                io_rlast,
+   input logic                io_rvalid,
    // }
 
    output logic [CDB_W-1:0]   o_cdb,
@@ -83,7 +118,7 @@ module memory_management_unit
    st_mmu_t state;
    st_mmu_t state_n = mmu_idle;
 
-   // static signals {
+   // static signals for MEM {
    assign s_axi_awid = 4'b0;
    assign s_axi_awprot = 'b0;
    assign s_axi_awlock = 'b0;
@@ -110,14 +145,44 @@ module memory_management_unit
    assign s_axi_wstrb = 16'hffff;
    assign s_axi_bready = 'b1;
 
+   // static signals for IO {
+   assign io_awid = 4'b0;
+   assign io_awprot = 'b0;
+   assign io_awlock = 'b0;
+   assign io_awcache = 'h0;
+   assign io_awqos = 'b0;
+   assign io_awburst = 'b1;
+   assign io_awlen = 'h0;
+   assign io_awsize = 'h4;
+
+   assign io_arid = 4'b0;
+   assign io_arprot = 'b0;
+   assign io_arlock = 'b0;
+   assign io_arcache = 'h0;
+   assign io_arqos = 'b0;
+   assign io_arburst = 'b1;
+   assign io_arlen = 'h0;
+   assign io_arsize = 'h4;
+   // }
+
+   assign io_araddr = 28'(address_d);
+   assign io_arvalid = 'b0;
+   assign io_awaddr = 28'(address_d);
+   assign io_awvalid = 'b0;
+
+   assign io_wstrb = 16'hffff;
+   assign io_bready = 'b1;
+
    // serial interface {
    always_comb begin
       if (valid && opcode == I_OUTPUT) begin
-         io_o_valid <= 'b1;
-         io_o_data <= data;
+         io_wvalid <= 'b1;
+         io_wlast <= 'b1;
+         io_wdata <= data;
       end else begin
-         io_o_valid <= 'b0;
-         io_o_data <= 'b0;
+         io_wvalid <= 'b0;
+         io_wlast <= 'b0;
+         io_wdata <= 'b0;
       end
    end
    // }
@@ -180,10 +245,10 @@ module memory_management_unit
 
    always_comb core_ready : begin
       if (state == mmu_idle && opcode == I_OUTPUT) begin
-         ready <= io_o_ready;
+         ready <= io_wready;
       end else if (state == mmu_idle && (opcode == I_INPUT ||
                                          opcode == I_INPUTF)) begin
-         ready <= io_i_valid;
+         ready <= io_rvalid;
       end else if (state == mmu_idle) begin
          ready <= 'b1;
       end else begin
@@ -192,19 +257,19 @@ module memory_management_unit
    end
 
    always_comb begin
-      io_i_ready <= 'b0;
-      s_axi_rready <= 'b0;
       o_cdb_valid <= 'b0;
       o_cdb <= 'b0;
+      io_rready <= 'b0;
+      s_axi_rready <= 'b0;
       if (valid && (opcode == I_INPUT ||
                     opcode == I_INPUTF)) begin
-         o_cdb_valid <= io_i_valid;
-         io_i_ready <= o_cdb_ready;
-         o_cdb <= {rsv_id, io_i_data};
+         o_cdb_valid <= io_rvalid;
+         o_cdb <= {rsv_id, 32'(io_rdata)};
+         io_rready <= o_cdb_ready;
       end else if (state == mmu_rd_data) begin
          o_cdb_valid <= s_axi_rvalid;
-         s_axi_rready <= o_cdb_ready;
          o_cdb <= {rsv_id_d, s_axi_rdata[31:0]};
+         s_axi_rready <= o_cdb_ready;
       end
    end // always_comb
 
