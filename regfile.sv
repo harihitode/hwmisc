@@ -21,50 +21,47 @@ module register_file
    input logic                                        nrst
    );
 
-   wire [N_RD_PORTS-1:0][REG_ADDR_W-1:0]        args;
-   wire [N_RD_PORTS-1:0][DATA_W-1:0]            regs;
-   logic [2**REG_ADDR_W-1:0][DATA_W-1:0]        reg_file = '0;
+   logic [N_RD_PORTS-1:0][REG_ADDR_W-1:0]             args = 'b0;
+   logic [N_RD_PORTS-1:0][DATA_W-1:0]                 regs = 'b0;
+   logic [2**REG_ADDR_W-1:0][DATA_W-1:0]              reg_file = '0;
 
-   wire [REG_ADDR_W-1:0]                        wr_reg_id;
-   wire [DATA_W-1:0]                            wr_reg_data;
+   wire [REG_ADDR_W-1:0]                              wr_reg_id;
+   wire [DATA_W-1:0]                                  wr_reg_data;
 
-   logic [2**REG_ADDR_W-1:0][RSV_ID_W-1:0]      query_n = '0;
-   logic [2**REG_ADDR_W-1:0][RSV_ID_W-1:0]      query = '0;
-   logic [2**REG_ADDR_W-1:0]                    filled_n = '1;
-   logic [2**REG_ADDR_W-1:0]                    filled = '1;
-
-   wire [N_RD_PORTS-1:0][RSV_ID_W-1:0]          regQs;
+   logic [2**REG_ADDR_W-1:0][RSV_ID_W-1:0]            query_n = '0;
+   logic [2**REG_ADDR_W-1:0][RSV_ID_W-1:0]            query = '0;
+   logic [2**REG_ADDR_W-1:0]                          filled_n = '1;
+   logic [2**REG_ADDR_W-1:0]                          filled = '1;
 
    generate begin for (genvar i = 0; i < N_RD_PORTS; i++) begin
-      assign args[i] = rdAddrs[i];
-      assign regs[i] = reg_file[$unsigned(args[i])];
-      assign regQs[i] = query[$unsigned(args[i])];
-      assign rdData[i] = {regQs[i], regs[i]};
-      assign rdData_filled[i] = filled[$unsigned(args[i])];
+      always_comb begin
+         args[i] <= rdAddrs[i];
+         regs[i] <= reg_file[$unsigned(args[i])];
+         rdData[i] <= {query[$unsigned(args[i])], regs[i]};
+         rdData_filled[i] <= filled[$unsigned(args[i])];
+      end
    end end
    endgenerate
 
    assign wr_reg_id = wrAddr;
    assign wr_reg_data = (we) ? wrData : reg_file[$unsigned(wr_reg_id)];
 
-   always_comb begin
-      // arg[2] is the destination register
-      automatic int dst_id = $unsigned(args[2]);
-      // the id which is committed
-      automatic int cmt_id = $unsigned(wr_reg_id);
-      for (int i = 0; i < 2**REG_ADDR_W; i++) begin
-         if (rsv && i == dst_id) begin
-            query_n[i] <= rob_id;
-            filled_n[i] <= 'b0;
-         end else if (we && i == cmt_id) begin
-            query_n[i] <= 'b0;
-            filled_n[i] <= 'b1;
-         end else begin
+   generate begin
+      for (genvar i = 0; i < 2**REG_ADDR_W; i++) begin
+         always_comb begin
             query_n[i] <= query[i];
             filled_n[i] <= filled[i];
-         end
+            // arg[2] is the destination register
+            // wr_reg_id is committed ID
+            if (rsv && i == $unsigned(args[2])) begin
+               query_n[i] <= rob_id;
+               filled_n[i] <= 'b0;
+            end else if (we && i == $unsigned(wr_reg_id)) begin
+               filled_n[i] <= 'b1;
+            end
+         end // always_comb
       end
-   end
+   end endgenerate
 
    always_ff @(posedge clk) begin
       if (nrst) begin
