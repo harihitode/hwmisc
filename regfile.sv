@@ -11,6 +11,7 @@ module register_file
    input logic [RSV_ID_W-1:0]                         rob_id,
    // from rob to reg
    input logic                                        we,
+   input logic [RSV_ID_W-1:0]                         wrQueAddr,
    input logic [REG_ADDR_W-1:0]                       wrAddr,
    input logic [DATA_W-1:0]                           wrData,
    // from reg to core
@@ -25,6 +26,7 @@ module register_file
    logic [N_RD_PORTS-1:0][DATA_W-1:0]                 regs = 'b0;
    logic [2**REG_ADDR_W-1:0][DATA_W-1:0]              reg_file = '0;
 
+   wire [RSV_ID_W-1:0]                                wr_reg_rsv_id;
    wire [REG_ADDR_W-1:0]                              wr_reg_id;
    wire [DATA_W-1:0]                                  wr_reg_data;
 
@@ -44,6 +46,7 @@ module register_file
    endgenerate
 
    assign wr_reg_id = wrAddr;
+   assign wr_reg_rsv_id = wrQueAddr;
    assign wr_reg_data = (we) ? wrData : reg_file[$unsigned(wr_reg_id)];
 
    generate begin
@@ -56,7 +59,8 @@ module register_file
             if (rsv && i == $unsigned(args[2])) begin
                query_n[i] <= rob_id;
                filled_n[i] <= 'b0;
-            end else if (we && i == $unsigned(wr_reg_id)) begin
+            end else if (we && i == $unsigned(wr_reg_id) &&
+                         query[i] == $unsigned(wr_reg_rsv_id)) begin
                filled_n[i] <= 'b1;
             end
          end // always_comb
