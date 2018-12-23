@@ -2,7 +2,7 @@
 
 module serial_top
   (
-   input logic clk,
+   input logic sys_clk_i,
    // serial ports
    input       uart_txd_in,
    output      uart_rxd_out
@@ -12,15 +12,15 @@ module serial_top
    logic       uart_txd_in_d, sysclk;
 
    // Gen GLOBAL CLK
-   IBUFG clk_buf (.I(clk), .O(sysclk));
+   IBUFG clk_buf (.I(sys_clk_i), .O(sysclk));
 
    // DFF for avoid meta-stable
    logic       uart_txd_in_dd = 'b1;
    IBUF rcv_buf (.I(uart_txd_in), .O(uart_txd_in_d));
    always_ff @(posedge sysclk) uart_txd_in_dd <= uart_txd_in_d;
 
-   localparam I_BYTES = 4;
-   localparam O_BYTES = 4;
+   localparam I_BYTES = 1;
+   localparam O_BYTES = 1;
 
    wire [I_BYTES*8-1:0] i_data;
    wire                 i_valid;
