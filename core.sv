@@ -173,15 +173,15 @@ module core
 
    always_comb alu_reservation_data : begin
       case (opcode)
-        I_SETI2, I_SAVE : begin
+        I_SETI1, I_SETI2, I_ADDI, I_SUBI : begin
            alu_data <= {rob_id, opcode, operands[2], imm};
            alu_filled <= {operands_filled[2], 1'b1};
         end
-        I_SETI1 : begin
-           alu_data <= {rob_id, opcode, operands[1], imm};
-           alu_filled <= {operands_filled[1], 1'b1};
+        I_SAVE : begin
+           alu_data <= {rob_id, opcode, (DATA_W+RSV_ID_W)'($unsigned(o_current_pc)), imm};
+           alu_filled <= {1'b1, 1'b1};
         end
-        I_ADDI, I_SUBI : begin
+        I_ADD, I_SUB, I_AND, I_OR, I_XOR : begin
            alu_data <= {rob_id, opcode, operands[1], operands[0]};
            alu_filled <= {operands_filled[1], operands_filled[0]};
         end
@@ -243,6 +243,7 @@ module core
         I_ADD, I_ADDI,
         I_SUB, I_SUBI,
         I_SL, I_SRL, I_SRA,
+        I_AND, I_OR, I_XOR,
         I_SAVE, I_SETI1, I_SETI2 :
           alu_reserve <= ~halt & o_current_valid;
         default :
@@ -268,6 +269,7 @@ module core
         I_LOAD, I_LOADB, I_LOADR,
         I_ADD, I_ADDI, I_SUB, I_SUBI,
         I_SL, I_SRL, I_SRA,
+        I_AND, I_OR, I_XOR,
         I_SAVE, I_SETI1, I_SETI2, I_INPUT :
           reg_reserve <= ~halt & o_current_valid;
         default:
@@ -293,6 +295,7 @@ module core
            I_ADD, I_ADDI,
            I_SUB, I_SUBI,
            I_SL, I_SRL, I_SRA,
+           I_AND, I_OR, I_XOR,
            I_SAVE, I_SETI1, I_SETI2 :
              halt <= ~alu_ready;
            I_LOAD, I_LOADB, I_LOADR,
@@ -326,6 +329,7 @@ module core
            I_ADD, I_ADDI,
            I_SUB, I_SUBI,
            I_SL, I_SRL, I_SRA,
+           I_AND, I_OR, I_XOR,
            I_SAVE, I_SETI1, I_SETI2,
            I_LOAD, I_LOADB, I_LOADR,
 //           I_LOADF, I_LOADBF, I_LOADRF,

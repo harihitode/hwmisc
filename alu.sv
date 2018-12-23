@@ -57,9 +57,15 @@ module alu
           pre_ret <= a1 + a2_negative;
         I_SAVE :
           pre_ret <= a1 + 'd2;
-        I_SETI2 :
-          pre_ret <= {16'h0000, a2[15:0]};
+        I_AND :
+          pre_ret <= a1 & a2;
+        I_OR :
+          pre_ret <= a1 | a2;
+        I_XOR :
+          pre_ret <= a1 ^ a2;
         I_SETI1 :
+          pre_ret <= {16'h0000, a2[15:0]};
+        I_SETI2 :
           pre_ret <= {a2[15:0], a1[15:0]};
         default:
           pre_ret <= 'h0;
