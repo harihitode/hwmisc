@@ -17,7 +17,7 @@ module uart_transmitter
    localparam logic [3:0] SEND_FIRSTDATA = 4'b0000;
    localparam logic [3:0] SEND_LASTDATA = 4'b1001;
 
-   logic [9:0]            buff = ~10'd0;
+   logic [9:0]            buff = '1;
    logic [3:0]            state = SLEEP;
    logic [19:0]           counter = WTIME;
 
@@ -32,7 +32,7 @@ module uart_transmitter
          if (valid & ready) buff <= {1'b1, data, 1'b0};
          else if (counter == 'd0) buff <= {1'b1, buff[9:1]}; // right shift
       end else begin
-         buff <= ~10'd0;
+         buff <= '1;
       end
    end
 
