@@ -43,36 +43,37 @@ module core
    input                       nrst
    );
 
-   logic                          take_flag = '0;
-   logic                          pred_miss = '0;
-   logic [CRAM_ADDR_W-1:0]        pred_miss_dst = '0;
+   logic                       take_flag = '0;
+   logic                       pred_miss = '0;
+   logic [CRAM_ADDR_W-1:0]     pred_miss_dst = '0;
 
-   wire [CRAM_ADDR_W-1:0]         o_current_pc;
-   wire [DATA_W-1:0]              o_current_inst;
-   wire [CRAM_ADDR_W-1:0]         o_taken_pc;
-   wire [CRAM_ADDR_W-1:0]         o_untaken_pc;
+   wire [CRAM_ADDR_W-1:0]      o_current_pc;
+   wire                        o_current_valid;
+   wire [DATA_W-1:0]           o_current_inst;
+   wire [CRAM_ADDR_W-1:0]      o_taken_pc;
+   wire [CRAM_ADDR_W-1:0]      o_untaken_pc;
 
-   wire [INSTR_W-1:0]             opcode;
-   wire [CRAM_ADDR_W-1:0]         program_counter;
-   logic                          halt = 'b0;
+   wire [INSTR_W-1:0]          opcode;
+   wire [CRAM_ADDR_W-1:0]      program_counter;
+   logic                       halt = 'b0;
 
    // common data bus
    localparam N_UNITS = 3;
    localparam N_REG_RD_PORTS = 3;
    localparam N_ROB_RD_PORTS = 6;
-   logic [CDB_W-1:0]              cdb = 'b0;
-   wire                           cdb_valid;
-   wire [N_UNITS-1:0]             units_cdb_valid;
-   logic [N_UNITS-1:0]            units_cdb_ready = '0;
+   logic [CDB_W-1:0]           cdb = 'b0;
+   wire                        cdb_valid;
+   wire [N_UNITS-1:0]          units_cdb_valid;
+   logic [N_UNITS-1:0]         units_cdb_ready = '0;
 
    // ROB
-   wire [RSV_ID_W-1:0]           rob_id;
-   wire                          rob_ready;
-   wire                          rob_reserve;
-   logic                         rob_no_wait = 'b0;
-   wire                          commit_valid;
-   logic                         commit_ready = 'b1;
-   wire                          station_t commit_data;
+   wire [RSV_ID_W-1:0]         rob_id;
+   wire                        rob_ready;
+   logic                       rob_reserve = 'b0;
+   logic                       rob_no_wait = 'b0;
+   wire                        commit_valid;
+   logic                       commit_ready = 'b1;
+   wire                        station_t commit_data;
 
    // ALU
    logic [RSV_ID_W+INSTR_W+2*(RSV_ID_W+DATA_W)-1:0] alu_data = '0;
@@ -138,8 +139,6 @@ module core
    assign program_counter = o_current_pc;
    assign reg_rdAddrs = o_current_inst[11+:3*REG_ADDR_W];
 
-   assign rob_reserve = (o_current_inst != 'b0) ? ~halt : 'b0;
-
    always_comb def_arguments : begin
       if (opcode == I_SAVE) begin
          imm <= (RSV_ID_W+DATA_W)'(program_counter);
@@ -150,12 +149,12 @@ module core
 
    generate begin for (genvar i = 0; i < 3; i++) begin
       always_comb begin
-         if (reg_filled[i]) begin
-            operands[i] <= reg_rdData[i];
-            operands_filled[i] <= reg_filled[i];
-         end else if (cdb_valid && reg_rdData[i][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
+         if (cdb_valid && reg_rdData[i][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
             operands[i] <= cdb;
             operands_filled[i] <= 'b1;
+         end else if (reg_filled[i]) begin
+            operands[i] <= reg_rdData[i];
+            operands_filled[i] <= reg_filled[i];
          end else begin
             operands[i] <= rob_rdData[i];
             operands_filled[i] <= rob_rdData_filled[i];
@@ -193,7 +192,7 @@ module core
       case (opcode)
         I_STORE, I_STOREB, I_STORER,
         I_STOREF, I_STOREBF, I_STORERF,
-        I_OUTPUT :
+        I_JMP, I_JMPR, I_OUTPUT :
           rob_no_wait <= 'b1;
         default:
           rob_no_wait <= 'b0;
@@ -231,13 +230,21 @@ module core
       endcase
    end
 
+   always_comb def_rob_reserve : begin
+      if (o_current_inst != 'b0) begin
+         rob_reserve <= (~halt & o_current_valid);
+      end else begin
+         rob_reserve <= 'b0;
+      end
+   end
+
    always_comb def_alu_reserve : begin
       case (opcode)
         I_ADD, I_ADDI,
         I_SUB, I_SUBI,
         I_SL, I_SLI, I_SRL, I_SRA,
         I_SAVE, I_SETI1, I_SETI2 :
-          alu_reserve <= ~halt;
+          alu_reserve <= ~halt & o_current_valid;
         default :
           alu_reserve <= 'b0;
       endcase
@@ -250,7 +257,7 @@ module core
         I_STORE, I_STOREB, I_STORER,
         I_STOREF, I_STOREBF, I_STORERF,
         I_INPUT, I_INPUTF, I_OUTPUT :
-          mfu_reserve <= 'b1;
+          mfu_reserve <= ~halt & o_current_valid;
         default :
           mfu_reserve <= 'b0;
       endcase
@@ -262,7 +269,7 @@ module core
         I_ADD, I_ADDI, I_SUB, I_SUBI,
         I_SL, I_SLI, I_SRL, I_SRA,
         I_SAVE, I_SETI1, I_SETI2, I_F2I, I_INPUT :
-          reg_reserve <= 'b1;
+          reg_reserve <= ~halt & o_current_valid;
         default:
           reg_reserve <= 'b0;
       endcase
@@ -306,11 +313,15 @@ module core
 
    assign reg_wr_addr = commit_data.dst_reg;
    assign reg_wr_data = commit_data.content;
+
+   always_comb begin
+      store_commit_id <= commit_data.station_id;
+   end
+
    always_comb comitter : begin
       if (commit_valid && commit_ready) begin
          reg_we <= 'b0;
          store_commit_valid <= 'b0;
-         store_commit_id <= 'b0;
          case (commit_data.opcode)
            I_ADD, I_ADDI,
            I_SUB, I_SUBI,
@@ -325,7 +336,6 @@ module core
            I_STOREF, I_STOREBF, I_STORERF,
            I_OUTPUT : begin
               store_commit_valid <= 'b1;
-              store_commit_id <= commit_data.station_id;
            end
          endcase
       end else begin
