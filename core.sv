@@ -181,7 +181,7 @@ module core
            alu_data <= {rob_id, opcode, operands[1], imm};
            alu_filled <= {operands_filled[1], 1'b1};
         end
-        I_ADDI, I_SUBI, I_SLI : begin
+        I_ADDI, I_SUBI : begin
            alu_data <= {rob_id, opcode, operands[1], operands[0]};
            alu_filled <= {operands_filled[1], operands_filled[0]};
         end
@@ -191,7 +191,7 @@ module core
    always_comb begin
       case (opcode)
         I_STORE, I_STOREB, I_STORER,
-        I_STOREF, I_STOREBF, I_STORERF,
+//        I_STOREF, I_STOREBF, I_STORERF,
         I_JMP, I_JMPR, I_OUTPUT :
           rob_no_wait <= 'b1;
         default:
@@ -201,25 +201,25 @@ module core
 
    always_comb mfu_reservation_data : begin
       case (opcode)
-        I_LOAD, I_LOADB,
-        I_LOADF, I_LOADBF : begin
+        I_LOAD, I_LOADB : begin
+//        I_LOADF, I_LOADBF : begin
            mfu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], imm};
            mfu_filled <= {1'b1, operands_filled[1], 1'b1};
         end
-        I_LOADR, I_LOADRF : begin
+        I_LOADR : begin
            mfu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], operands[0]};
            mfu_filled <= {1'b1, operands_filled[1], operands_filled[0]};
         end
-        I_INPUT, I_INPUT : begin
+        I_INPUT : begin
            mfu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, {RSV_ID_W+DATA_W{1'b1}}, {RSV_ID_W+DATA_W{1'b0}}};
            mfu_filled <= {1'b1, 1'b1, 1'b1};
         end
-        I_STORE, I_STOREB,
-        I_STOREF, I_STOREBF : begin
+        I_STORE, I_STOREB : begin
+//        I_STOREF, I_STOREBF : begin
            mfu_data <= {rob_id, opcode, operands[2], operands[1], imm};
            mfu_filled <= {operands_filled[2], operands_filled[1], 1'b1};
         end
-        I_STORER, I_STORERF : begin
+        I_STORER : begin
            mfu_data <= {rob_id, opcode, operands[2], operands[1], operands[0]};
            mfu_filled <= {operands_filled[2], operands_filled[1], operands_filled[0]};
         end
@@ -242,7 +242,7 @@ module core
       case (opcode)
         I_ADD, I_ADDI,
         I_SUB, I_SUBI,
-        I_SL, I_SLI, I_SRL, I_SRA,
+        I_SL, I_SRL, I_SRA,
         I_SAVE, I_SETI1, I_SETI2 :
           alu_reserve <= ~halt & o_current_valid;
         default :
@@ -253,10 +253,10 @@ module core
    always_comb def_mfu_reserve : begin
       case (opcode)
         I_LOAD, I_LOADB, I_LOADR,
-        I_LOADF, I_LOADBF, I_LOADRF,
+//        I_LOADF, I_LOADBF, I_LOADRF,
         I_STORE, I_STOREB, I_STORER,
-        I_STOREF, I_STOREBF, I_STORERF,
-        I_INPUT, I_INPUTF, I_OUTPUT :
+//        I_STOREF, I_STOREBF, I_STORERF,
+        I_INPUT, I_OUTPUT :
           mfu_reserve <= ~halt & o_current_valid;
         default :
           mfu_reserve <= 'b0;
@@ -267,8 +267,8 @@ module core
       case (opcode)
         I_LOAD, I_LOADB, I_LOADR,
         I_ADD, I_ADDI, I_SUB, I_SUBI,
-        I_SL, I_SLI, I_SRL, I_SRA,
-        I_SAVE, I_SETI1, I_SETI2, I_F2I, I_INPUT :
+        I_SL, I_SRL, I_SRA,
+        I_SAVE, I_SETI1, I_SETI2, I_INPUT :
           reg_reserve <= ~halt & o_current_valid;
         default:
           reg_reserve <= 'b0;
@@ -292,14 +292,14 @@ module core
          case (opcode)
            I_ADD, I_ADDI,
            I_SUB, I_SUBI,
-           I_SL, I_SLI, I_SRL, I_SRA,
+           I_SL, I_SRL, I_SRA,
            I_SAVE, I_SETI1, I_SETI2 :
              halt <= ~alu_ready;
            I_LOAD, I_LOADB, I_LOADR,
-           I_LOADF, I_LOADBF, I_LOADRF,
+//           I_LOADF, I_LOADBF, I_LOADRF,
            I_STORE, I_STOREB, I_STORER,
-           I_STOREF, I_STOREBF, I_STORERF,
-           I_INPUT, I_INPUTF, I_OUTPUT :
+//           I_STOREF, I_STOREBF, I_STORERF,
+           I_INPUT, I_OUTPUT :
              halt <= ~mfu_ready;
            default:
              halt <= 'b0;
@@ -325,15 +325,15 @@ module core
          case (commit_data.opcode)
            I_ADD, I_ADDI,
            I_SUB, I_SUBI,
-           I_SL, I_SLI, I_SRL, I_SRA,
+           I_SL, I_SRL, I_SRA,
            I_SAVE, I_SETI1, I_SETI2,
            I_LOAD, I_LOADB, I_LOADR,
-           I_LOADF, I_LOADBF, I_LOADRF,
-           I_INPUT, I_INPUTF : begin
+//           I_LOADF, I_LOADBF, I_LOADRF,
+           I_INPUT : begin
               reg_we <= 'b1;
            end
            I_STORE, I_STOREB, I_STORER,
-           I_STOREF, I_STOREBF, I_STORERF,
+//           I_STOREF, I_STOREBF, I_STORERF,
            I_OUTPUT : begin
               store_commit_valid <= 'b1;
            end

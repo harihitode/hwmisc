@@ -95,14 +95,14 @@ module scheduler
    end
 
    wire                                  branch_flag;
-   assign branch_flag = (s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLE ||
-                         s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLEI ||
+   assign branch_flag = (//s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLE ||
+                         //s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLEI ||
                          s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLT ||
-                         s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLTF ||
-                         s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLTI ||
-                         s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BEQ ||
-                         s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BEQF ||
-                         s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BEQI
+                         //s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLTF ||
+                         //s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BLTI ||
+                         s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BEQ
+                         //s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BEQF ||
+                         //s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_BEQI
                          ) ? 'b1 : 'b0;
 
    always_comb begin

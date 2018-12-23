@@ -211,12 +211,12 @@ module memory_management_unit
       if (state == mmu_idle) begin
          if (valid && ready) begin
             case (opcode)
-              I_STORE, I_STOREB, I_STORER,
-              I_STOREF, I_STOREBF, I_STORERF : begin
+              I_STORE, I_STOREB, I_STORER : begin
+//              I_STOREF, I_STOREBF, I_STORERF : begin
                  state_n <= mmu_wr_addr;
               end
-              I_LOAD, I_LOADB, I_LOADR,
-              I_LOADF, I_LOADBF, I_LOADRF : begin
+              I_LOAD, I_LOADB, I_LOADR : begin
+//              I_LOADF, I_LOADBF, I_LOADRF : begin
                  state_n <= mmu_rd_addr;
               end
               default : begin
@@ -246,8 +246,7 @@ module memory_management_unit
    always_comb core_ready : begin
       if (state == mmu_idle && opcode == I_OUTPUT) begin
          ready <= io_wready;
-      end else if (state == mmu_idle && (opcode == I_INPUT ||
-                                         opcode == I_INPUTF)) begin
+      end else if (state == mmu_idle && (opcode == I_INPUT)) begin
          ready <= io_rvalid;
       end else if (state == mmu_idle) begin
          ready <= 'b1;
@@ -261,8 +260,7 @@ module memory_management_unit
       o_cdb <= 'b0;
       io_rready <= 'b0;
       s_axi_rready <= 'b0;
-      if (valid && (opcode == I_INPUT ||
-                    opcode == I_INPUTF)) begin
+      if (valid && (opcode == I_INPUT)) begin
          o_cdb_valid <= io_rvalid;
          o_cdb <= {rsv_id, 32'(io_rdata)};
          io_rready <= o_cdb_ready;

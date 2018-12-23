@@ -64,13 +64,15 @@ package fcpu_pkg;
    const logic [INSTR_W-1:0]   I_XOR     = 'b010101;
 
    const logic [INSTR_W-1:0]   I_OUTPUT  = 'b100000;
-   const logic [INSTR_W-1:0]   I_INPUT   = 'b100101;
+   const logic [INSTR_W-1:0]   I_LOADB   = 'b100010;
+   const logic [INSTR_W-1:0]   I_STOREB  = 'b110011;
+   const logic [INSTR_W-1:0]   I_INPUT   = 'b100100;
 
    // const logic [INSTR_W-1:0]   I_BLE     = 'b000010;
    // const logic [INSTR_W-1:0]   I_BLEI    = 'b000101;
    // const logic [INSTR_W-1:0]   I_LOADRF  = 'b001010;
    // const logic [INSTR_W-1:0]   I_STORERF = 'b001011;
-   // const logic [INSTR_W-1:0]   I_FABS    = 'b001100;
+   // const logic [INSTR_W-1:0]   I_FABS    = 'b0011n00;
    // const logic [INSTR_W-1:0]   I_FLOOR   = 'b001110;
    // const logic [INSTR_W-1:0]   I_FNEG    = 'b001111;
    // const logic [INSTR_W-1:0]   I_BLTF    = 'b010001;
@@ -81,9 +83,7 @@ package fcpu_pkg;
    // const logic [INSTR_W-1:0]   I_SETF1   = 'b100110;
    // const logic [INSTR_W-1:0]   I_SETF2   = 'b100111;
    // const logic [INSTR_W-1:0]   I_INPUTF  = 'b101101;
-   // const logic [INSTR_W-1:0]   I_LOADB   = 'b110010;
    // const logic [INSTR_W-1:0]   I_LOADBF  = 'b110011;
-   // const logic [INSTR_W-1:0]   I_STOREB  = 'b110100;
    // const logic [INSTR_W-1:0]   I_STOREBF = 'b110101;
    // const logic [INSTR_W-1:0]   I_LOADF   = 'b110110;
    // const logic [INSTR_W-1:0]   I_STOREF  = 'b110111;

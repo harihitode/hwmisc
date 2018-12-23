@@ -111,7 +111,7 @@ module memory_functional_unit
    always_comb begin
       case (address[3*DATA_W+:INSTR_W])
         I_STORE, I_STOREB, I_STORER,
-        I_STOREF, I_STOREBF, I_STORERF,
+//        I_STOREF, I_STOREBF, I_STORERF,
         I_OUTPUT : begin
            address_store <= 'b1;
         end
@@ -147,7 +147,7 @@ module memory_functional_unit
       if (i_valid && i_ready) begin
          case (i_data[3*(DATA_W+RSV_ID_W)+:INSTR_W])
            I_STORE, I_STOREB, I_STORER,
-           I_STOREF, I_STOREBF, I_STORERF,
+//           I_STOREF, I_STOREBF, I_STORERF,
            I_OUTPUT : begin
               store_buffer_push <= 'b1;
            end
@@ -160,7 +160,7 @@ module memory_functional_unit
       if (o_valid && o_ready) begin
          case (o_opcode)
            I_STORE, I_STOREB, I_STORER,
-           I_STOREF, I_STOREBF, I_STORERF,
+//           I_STOREF, I_STOREBF, I_STORERF,
            I_OUTPUT : begin
               store_buffer_pop <= 'b1;
            end
@@ -307,7 +307,7 @@ module memory_functional_unit
    always_comb begin
       case (p_computed_address[3*DATA_W+:INSTR_W])
         I_STORE, I_STOREB, I_STORER,
-        I_STOREF, I_STOREBF, I_STORERF,
+//        I_STOREF, I_STOREBF, I_STORERF,
         I_OUTPUT : begin
            p_address_store <= 'b1;
         end
