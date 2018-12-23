@@ -3,111 +3,105 @@
 import fcpu_pkg::*;
 
 module fcpu
-  #(parameter logic [15:0] WTIME = 16'h364)
-   (
-    // serial
-    input         uart_txd_in,
-    output        uart_rxd_out,
-    // DDR
-    inout [15:0]  ddr3_dq,
-    inout [1:0]   ddr3_dqs_n,
-    inout [1:0]   ddr3_dqs_p,
-    // Outputs
-    output [13:0] ddr3_addr,
-    output [2:0]  ddr3_ba,
-    output        ddr3_ras_n,
-    output        ddr3_cas_n,
-    output        ddr3_we_n,
-    output        ddr3_reset_n,
-    output [0:0]  ddr3_ck_p,
-    output [0:0]  ddr3_ck_n,
-    output [0:0]  ddr3_cke,
-    output [0:0]  ddr3_cs_n,
-    output [1:0]  ddr3_dm,
-    output [0:0]  ddr3_odt,
-    // clk & reset
-    input         sys_clk_i,
-    input         clk_ref_i,
-    input [11:0]  device_temp_i,
+  (
+   // clk & reset
+   input logic         sys_clk_i,
+   input logic         clk_ref_i,
+   input logic [11:0]  device_temp_i,
+   // CRAM {
+   // cram addr ports
+   output logic [3:0]  s_cram_arid,
+   output logic [31:0] s_cram_araddr,
+   output logic [7:0]  s_cram_arlen,
+   output logic [2:0]  s_cram_arsize,
+   output logic [1:0]  s_cram_arburst,
+   output logic [0:0]  s_cram_arlock,
+   output logic [3:0]  s_cram_arcache,
+   output logic [2:0]  s_cram_arprot,
+   output logic [3:0]  s_cram_arqos,
+   output logic        s_cram_arvalid,
+   input logic         s_cram_arready,
+   // cram data ports
+   output logic        s_cram_rready,
+   input logic [3:0]   s_cram_rid,
+   input logic [31:0]  s_cram_rdata,
+   input logic [1:0]   s_cram_rresp,
+   input logic         s_cram_rlast,
+   input logic         s_cram_rvalid,
+   // }
+   // DDR {
+   inout logic [15:0]  ddr3_dq,
+   inout logic [1:0]   ddr3_dqs_n,
+   inout logic [1:0]   ddr3_dqs_p,
+   output logic [13:0] ddr3_addr,
+   output logic [2:0]  ddr3_ba,
+   output logic        ddr3_ras_n,
+   output logic        ddr3_cas_n,
+   output logic        ddr3_we_n,
+   output logic        ddr3_reset_n,
+   output logic [0:0]  ddr3_ck_p,
+   output logic [0:0]  ddr3_ck_n,
+   output logic [0:0]  ddr3_cke,
+   output logic [0:0]  ddr3_cs_n,
+   output logic [1:0]  ddr3_dm,
+   output logic [0:0]  ddr3_odt,
+   // }
+   // I/O {
+   // Slave Interface Write Address Ports
+   output logic [3:0]  io_awid,
+   output logic [27:0] io_awaddr,
+   output logic [7:0]  io_awlen,
+   output logic [2:0]  io_awsize,
+   output logic [1:0]  io_awburst,
+   output logic [0:0]  io_awlock,
+   output logic [3:0]  io_awcache,
+   output logic [2:0]  io_awprot,
+   output logic [3:0]  io_awqos,
+   output logic        io_awvalid,
+   input logic         io_awready,
+   // Slave Interface Write Data Ports
+   output logic [7:0]  io_wdata,
+   output logic [15:0] io_wstrb,
+   output logic        io_wlast,
+   output logic        io_wvalid,
+   input logic         io_wready,
+   // Slave Interface Write Response Ports
+   output logic        io_bready,
+   input logic [3:0]   io_bid,
+   input logic [1:0]   io_bresp,
+   input logic         io_bvalid,
+   // Slave Interface Read Address Ports
+   output logic [3:0]  io_arid,
+   output logic [27:0] io_araddr,
+   output logic [7:0]  io_arlen,
+   output logic [2:0]  io_arsize,
+   output logic [1:0]  io_arburst,
+   output logic [0:0]  io_arlock,
+   output logic [3:0]  io_arcache,
+   output logic [2:0]  io_arprot,
+   output logic [3:0]  io_arqos,
+   output logic        io_arvalid,
+   input logic         io_arready,
+   // Slave Interface Read Data Ports
+   output logic        io_rready,
+   input logic [3:0]   io_rid,
+   input logic [7:0]   io_rdata,
+   input logic [1:0]   io_rresp,
+   input logic         io_rlast,
+   input logic         io_rvalid,
+   // }
+   output logic        init_calib_complete,
+   output logic        tg_compare_error,
+   input logic         sys_rst_n,
+   output logic        ui_clk
+   );
 
-    output        init_calib_complete,
-    output        tg_compare_error,
-    input         sys_rst_n,
-    output        ui_clk
-    );
-
-   wire           nrst;
-   wire           mmcm_locked;
-   wire           ui_clk_i;
+   wire                nrst;
+   wire                mmcm_locked;
+   wire                ui_clk_i;
    assign tg_compare_error = 'b0;
    assign nrst = sys_rst_n & mmcm_locked;
    assign ui_clk = ui_clk_i;
-
-   // cram addr ports
-   wire [3:0]     s_cram_arid;
-   wire [31:0]    s_cram_araddr;
-   wire [7:0]     s_cram_arlen;
-   wire [2:0]     s_cram_arsize;
-   wire [1:0]     s_cram_arburst;
-   wire [0:0]     s_cram_arlock;
-   wire [3:0]     s_cram_arcache;
-   wire [2:0]     s_cram_arprot;
-   wire [3:0]     s_cram_arqos;
-   wire           s_cram_arvalid;
-   wire           s_cram_arready;
-
-   // cram data ports
-   wire           s_cram_rready;
-   wire [3:0]     s_cram_rid;
-   wire [31:0]    s_cram_rdata;
-   wire [1:0]     s_cram_rresp;
-   wire           s_cram_rlast;
-   wire           s_cram_rvalid;
-
-   blk_mem_gen_0 cram_inst
-     (
-      .s_aclk(ui_clk_i),
-      .s_axi_arid(s_cram_arid),
-      .s_axi_araddr(s_cram_araddr),
-      .s_axi_arlen(s_cram_arlen),
-      .s_axi_arsize(s_cram_arsize),
-      .s_axi_arburst(s_cram_arburst),
-      .s_axi_arvalid(s_cram_arvalid),
-      .s_axi_arready(s_cram_arready),
-      .s_axi_rid(s_cram_rid),
-      .s_axi_rdata(s_cram_rdata),
-      .s_axi_rresp(s_cram_rresp),
-      .s_axi_rlast(s_cram_rlast),
-      .s_axi_rvalid(s_cram_rvalid),
-      .s_axi_rready(s_cram_rready),
-      .s_aresetn('b1),
-      .s_axi_awid('b0),
-      .s_axi_awaddr('b0),
-      .s_axi_awlen('b0),
-      .s_axi_awsize('b0),
-      .s_axi_awburst('b1),
-      .s_axi_awvalid('b0),
-      .s_axi_awready(),
-      .s_axi_wdata('b0),
-      .s_axi_wstrb('b0),
-      .s_axi_wlast('b0),
-      .s_axi_wvalid('b0),
-      .s_axi_wready(),
-      .s_axi_bid(),
-      .s_axi_bresp(),
-      .s_axi_bvalid(),
-      .s_axi_bready('b1),
-      .rsta_busy(),
-      .rstb_busy()
-      );
-
-   wire [7:0] io_o_data;
-   wire       io_o_valid;
-   wire       io_o_ready;
-
-   wire [7:0] io_i_data;
-   wire       io_i_valid;
-   wire       io_i_ready;
 
    wire [RSV_ID_W-1:0] mmu_rsv_id;
    wire                mmu_valid;
@@ -180,37 +174,9 @@ module fcpu
       .address(mmu_addr),
       .opcode(mmu_opcode),
       .ready(mmu_ready),
-
-      .io_o_data(io_o_data),
-      .io_o_valid(io_o_valid),
-      .io_o_ready(io_o_ready),
-
-      .io_i_data(io_i_data),
-      .io_i_valid(io_i_valid),
-      .io_i_ready(io_i_ready),
-
       .o_cdb(mmu_cdb),
       .o_cdb_valid(mmu_cdb_valid),
       .o_cdb_ready(mmu_cdb_ready),
-
-      .nrst(nrst)
-      );
-
-   serial_interface
-     #(.WTIME(WTIME))
-   serial_if_inst
-     (
-      .clk(ui_clk_i),
-      .uart_txd_in(uart_txd_in),
-      .uart_rxd_out(uart_rxd_out),
-
-      .i_data(io_o_data),
-      .i_valid(io_o_valid),
-      .i_ready(io_o_ready),
-
-      .o_data(io_i_data),
-      .o_valid(io_i_valid),
-      .o_ready(io_i_ready),
 
       .nrst(nrst)
       );
