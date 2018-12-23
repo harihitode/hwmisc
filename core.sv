@@ -96,6 +96,7 @@ module core
    // from rob to reg
    logic                                            reg_we = 'b0;
    wire [REG_ADDR_W-1:0]                            reg_wr_addr;
+   wire [RSV_ID_W-1:0]                              reg_wr_rsv_addr;
    wire [DATA_W-1:0]                                reg_wr_data;
    wire [N_ROB_RD_PORTS-1:0][RSV_ID_W+DATA_W-1:0]   rob_rdData;
    wire [N_ROB_RD_PORTS-1:0]                        rob_rdData_filled;
@@ -314,6 +315,7 @@ module core
    assign mfu_cdb_ready = units_cdb_ready[1];
    assign mmu_cdb_ready = units_cdb_ready[2];
 
+   assign reg_wr_rsv_addr = commit_data.station_id;
    assign reg_wr_addr = commit_data.dst_reg;
    assign reg_wr_data = commit_data.content;
 
@@ -412,6 +414,7 @@ module core
 
       .we(reg_we),
       .wrAddr(reg_wr_addr),
+      .wrQueAddr(reg_wr_rsv_id),
       .wrData(reg_wr_data),
 
       .rdAddrs(reg_rdAddrs),
