@@ -414,7 +414,7 @@ module core
 
       .we(reg_we),
       .wrAddr(reg_wr_addr),
-      .wrQueAddr(reg_wr_rsv_id),
+      .wrQueAddr(reg_wr_rsv_addr),
       .wrData(reg_wr_data),
 
       .rdAddrs(reg_rdAddrs),
