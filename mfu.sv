@@ -55,7 +55,7 @@ module memory_functional_unit
    wire                        address_valid;
    wire                        p_address_valid;
    wire [RSV_ID_W+INSTR_W+2*(DATA_W)-1:0] p_address;
-   wire [1+RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] p_computed_address;
+   logic [1+RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] p_computed_address = 'b0;
    wire [1+RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] address;
    logic                                    address_ready = 'b0;
    wire                                     p_address_ready;
@@ -317,11 +317,21 @@ module memory_functional_unit
       endcase
    end
 
-   assign p_computed_address = {
-                                load_bypassing,
-                                p_address[2*DATA_W+:INSTR_W+RSV_ID_W],
-                                p_address[0+:DATA_W] + p_address[DATA_W+:DATA_W],
-                                p_address[0+:2*DATA_W]
-                                };
+   always_comb begin
+      automatic logic [DATA_W-1:0] addr;
+
+      if (p_address[2*DATA_W+:INSTR_W] == I_STOREB ||
+          p_address[2*DATA_W+:INSTR_W] == I_LOADB) begin
+         addr = p_address[0+:DATA_W] - p_address[DATA_W+:DATA_W];
+      end else begin
+         addr = p_address[0+:DATA_W] + p_address[DATA_W+:DATA_W];
+      end
+      p_computed_address <= {
+                             load_bypassing,
+                             p_address[2*DATA_W+:INSTR_W+RSV_ID_W],
+                             addr,
+                             p_address[0+:2*DATA_W]
+                             };
+   end
 
 endmodule
