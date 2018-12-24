@@ -32,14 +32,36 @@ module reservation_station
    logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0]                      station_filled_n = '0;
    logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0]                      station_filled = '0;
    // dest_rob_if, opcode, ordered_tag
-   logic [2**N_STATIONS_W-1:0][RSV_ID_W+INSTR_W+RSV_ID_W-1:0]       station_n = '0;
-   logic [2**N_STATIONS_W-1:0][RSV_ID_W+INSTR_W+RSV_ID_W-1:0]       station = '0;
+   logic [2**N_STATIONS_W-1:0][RSV_ID_W+INSTR_W+N_STATIONS_W-1:0]   station_n = '0;
+   logic [2**N_STATIONS_W-1:0][RSV_ID_W+INSTR_W+N_STATIONS_W-1:0]   station = '0;
 
    logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0][RSV_ID_W+DATA_W-1:0] station_data_n = '0;
    logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0][RSV_ID_W+DATA_W-1:0] station_data = '0;
 
    int                                                              delete_st = 0;
    int                                                              empty_st = 0;
+
+   logic [N_STATIONS_W-1:0]                                         ordered_id = 'b0;
+   logic                                                            ordered = 'b0;
+
+   always_ff @(posedge clk) begin
+      if (nrst) begin
+         if (i_valid && i_ready && i_ordered) begin
+            ordered_id <= ordered_id + 'b1;
+         end
+      end else begin
+         ordered_id <= 'b0;
+      end
+   end
+
+   always_comb begin
+      ordered <= 'b1;
+      for (int i = 0; i < 2**N_STATIONS_W; i++) begin
+         if (station_valid[i]) begin
+            ordered <= ~i_ordered;
+         end
+      end
+   end
 
    generate begin for (genvar i = 0; i < 2**N_STATIONS_W; i++) begin
       for (genvar j = 0; j < N_OPERANDS; j++) begin
@@ -69,14 +91,25 @@ module reservation_station
          if ((i == empty_st) && i_valid && i_ready) begin
             // new entry
             station_valid_n[i] <= 'b1;
-            station_ordered_n[i] <= 'b1; // TODO
+            if (ordered_id ==
+                (N_STATIONS_W)'(station[delete_st][0+:N_STATIONS_W] + 'b1)
+                && o_valid && o_ready) begin
+               station_ordered_n[i] <= 'b1;
+            end else begin
+               station_ordered_n[i] <= ordered;
+            end
             // the last RSV_ID is dependency of ordering
-            station_n[i] <= {i_data[N_OPERANDS*(RSV_ID_W+DATA_W)+:RSV_ID_W+INSTR_W], {(RSV_ID_W){1'b0}}};
+            station_n[i] <= {i_data[N_OPERANDS*(RSV_ID_W+DATA_W)+:RSV_ID_W+INSTR_W],
+                             ordered_id};
          end else if ((i == delete_st) && o_valid && o_ready) begin
             // delete entry
             station_valid_n[i] <= 'b0;
             station_ordered_n[i] <= 'b0;
             station_n[i] <= 'b0;
+         end else if ((station[i][0+:N_STATIONS_W] ==
+                       (N_STATIONS_W)'(station[delete_st][0+:N_STATIONS_W] + 'b1))
+                      && o_valid && o_ready) begin
+            station_ordered_n[i] <= 1'b1;
          end
       end
    end end
@@ -87,7 +120,7 @@ module reservation_station
       o_valid <= station_valid[delete_st] &
                  station_ordered[delete_st] &
                  (&station_filled[delete_st]);
-      o_data[N_OPERANDS*DATA_W+:(RSV_ID_W+INSTR_W)] <= station[delete_st][RSV_ID_W+:RSV_ID_W+INSTR_W];
+      o_data[N_OPERANDS*DATA_W+:(RSV_ID_W+INSTR_W)] <= station[delete_st][N_STATIONS_W+:RSV_ID_W+INSTR_W];
       for (int i = 0; i < N_OPERANDS; i++) begin
          o_data[i*DATA_W+:DATA_W] <= station_data[delete_st][i];
       end
