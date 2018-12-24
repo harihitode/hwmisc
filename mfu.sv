@@ -56,15 +56,15 @@ module memory_functional_unit
    wire                        p_address_valid;
    wire [RSV_ID_W+INSTR_W+2*(DATA_W)-1:0] p_address;
    logic [1+RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] p_computed_address = 'b0;
-   wire [1+RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] address;
-   logic                                    address_ready = 'b0;
-   wire                                     p_address_ready;
-   logic                                    address_store = 'b0;
-   logic                                    p_address_store = 'b0;
-   logic                                    load_bypassing = 'b0;
-   logic [STORE_BUFFER_SIZE-1:0]            load_bypassing_vec = 'b0;
-   logic                                    load_forwarding = 'b0;
-   logic [DATA_W-1:0]                       computed_address = 'b0;
+   wire [1+RSV_ID_W+INSTR_W+3*(DATA_W)-1:0]  address;
+   logic                                     address_ready = 'b0;
+   wire                                      p_address_ready;
+   logic                                     address_store = 'b0;
+   logic                                     p_address_store = 'b0;
+   logic                                     load_bypassing = 'b0;
+   logic [STORE_BUFFER_SIZE-1:0]             load_bypassing_vec = 'b0;
+   logic                                     load_forwarding = 'b0;
+   logic [DATA_W-1:0]                        computed_address = 'b0;
 
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer = 'b0;
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer_n = 'b0;
