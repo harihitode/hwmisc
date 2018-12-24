@@ -19,6 +19,9 @@ module reorder_buffer
     output logic [ROB_PORT_W-1:0][RSV_ID_W+DATA_W-1:0] rob_data,
     output logic [ROB_PORT_W-1:0]                      rob_data_filled,
 
+    // from branch unit
+    input logic                                        rob_clear,
+
     // to committer
     output logic                                       o_valid,
     output                                             station_t o_commit_data,
@@ -38,7 +41,6 @@ module reorder_buffer
 
    logic [2**N_ROB_W-1:0]                                      rob_reserve;
    logic [2**N_ROB_W-1:0]                                      rob_release;
-   logic [2**N_ROB_W-1:0]                                      rob_clear; // used by branch prediction miss
 
    logic [N_ROB_W-1:0]                                         rob_tail = 'h0;
    logic [N_ROB_W-1:0]                                         rob_tail_n;
@@ -63,10 +65,6 @@ module reorder_buffer
       if (o_valid && o_ready) begin
          rob_release[rob_head] <= 'b1;
       end
-   end
-
-   always_comb begin
-      rob_clear <= 'b0;
    end
 
    // ROB data read {
@@ -96,7 +94,7 @@ module reorder_buffer
          // }
 
          // update rob stations {
-         if (rob_clear[i]) begin
+         if (rob_clear) begin
             update_station[i].valid <= 'b0;
          end else begin
             update_station[i].valid <= station[i].valid;

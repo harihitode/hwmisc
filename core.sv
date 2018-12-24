@@ -71,6 +71,7 @@ module core
    wire                        rob_ready;
    logic                       rob_reserve = 'b0;
    logic                       rob_no_wait = 'b0;
+   logic                       rob_clear = 'b0;
    wire                        commit_valid;
    logic                       commit_ready = 'b1;
    wire                        station_t commit_data;
@@ -437,6 +438,8 @@ module core
       .rob_id(rob_rdAddr),
       .rob_data(rob_rdData),
       .rob_data_filled(rob_rdData_filled),
+
+      .rob_clear(rob_clear),
 
       .o_valid(commit_valid),
       .o_commit_data(commit_data),
