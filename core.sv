@@ -89,7 +89,7 @@ module core
    logic [RSV_ID_W+DATA_W-1:0]                      imm;
 
    // BRU
-   logic [RSV_ID_W+INSTR_W+2*(RSV_ID_W+DATA_W)-1:0] bru_data = '0;
+   logic [RSV_ID_W+INSTR_W+4*(RSV_ID_W+DATA_W)-1:0] bru_data = '0;
    logic [1:0]                                      bru_filled = 'b0;
    logic                                            bru_reserve = 'b0;
    wire                                             bru_ready;
@@ -197,12 +197,15 @@ module core
    always_comb bru_reservation_data : begin
       case (opcode)
         I_BLT, I_BEQ : begin
-           bru_data <= {rob_id, opcode, operands[1], operands[0]};
-           bru_filled <= {operands_filled[1], operands_filled[0]};
+           bru_data <= {rob_id, opcode,
+                        operands[1], operands[0],
+                        (DATA_W+RSV_ID_W)'(o_current_taken),
+                        (DATA_W+RSV_ID_W)'($unsigned(o_untaken_pc))};
+           bru_filled <= {operands_filled[1], operands_filled[0], 1'b1, 1'b1};
         end
         I_JMPR : begin
-           bru_data <= {rob_id, opcode, operands[1], imm};
-           bru_filled <= {operands_filled[1], 1'b1};
+           bru_data <= {rob_id, opcode, operands[1], imm, (DATA_W+RSV_ID_W)'(o_current_taken)};
+           bru_filled <= {operands_filled[1], 1'b1, 1'b1};
         end
       endcase
    end
@@ -211,6 +214,7 @@ module core
       case (opcode)
         I_STORE, I_STOREB, I_STORER,
 //        I_STOREF, I_STOREBF, I_STORERF,
+        I_BLT, I_BEQ,
         I_JMP, I_JMPR, I_OUTPUT :
           rob_no_wait <= 'b1;
         default:

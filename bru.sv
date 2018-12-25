@@ -3,7 +3,7 @@
 import fcpu_pkg::*;
 
 module branch_unit
-  #(localparam N_OPERANDS = 2)
+  #(localparam N_OPERANDS = 3)
    (
     input logic                                                     clk,
     // reserve
@@ -30,6 +30,8 @@ module branch_unit
    wire [DATA_W-1:0]                                                a1;
    wire [DATA_W-1:0]                                                a2;
    logic                                                            condition = '0;
+   wire                                                             pred_condition;
+   wire [DATA_W-1:0]                                                dst;
 
    wire [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0]                  calc_n;
    logic [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0]                 calc = '0;;
@@ -37,6 +39,18 @@ module branch_unit
    wire                                                             calc_valid_n;
    logic                                                            calc_valid = 'b0;
    wire                                                             calc_ready;
+
+   assign opcode = calc[2*DATA_W+:INSTR_W];
+   assign a1 = calc[3*DATA_W+:DATA_W];
+   assign a2 = calc[2*DATA_W+:DATA_W];
+   assign pred_condition = calc[1*DATA_W];
+   assign dst = calc[0*DATA_W+:DATA_W];
+   assign o_valid = calc_valid;
+   assign calc_ready = 'b1;
+
+   assign take_flag = 'b0;
+   assign rob_clear = 'b0;
+   assign branch_miss = 'b0;
 
    always_comb begin
       case (opcode)
@@ -49,15 +63,18 @@ module branch_unit
       endcase
    end
 
-   assign opcode = calc[2*DATA_W+:INSTR_W];
-   assign a1 = calc[1*DATA_W+:DATA_W];
-   assign a2 = calc[0*DATA_W+:DATA_W];
-   assign o_valid = calc_valid;
-   assign calc_ready = 'b1;
+   assign pred_miss_dst = dst[CRAM_ADDR_W-1:0];
+   assign pred_miss = condition ^ pred_condition;
 
-   assign take_flag = 'b0;
-   assign rob_clear = 'b0;
-   assign branch_miss = 'b0;
+   always_ff @(posedge clk) begin
+      if (nrst) begin
+         calc <= calc_n;
+         calc_valid <= calc_valid_n;
+      end else begin
+         calc <= 'b0;
+         calc_valid <= 'b0;
+      end
+   end
 
    reservation_station
      #(.N_OPERANDS(N_OPERANDS),
