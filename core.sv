@@ -90,7 +90,7 @@ module core
 
    // BRU
    logic [RSV_ID_W+INSTR_W+4*(RSV_ID_W+DATA_W)-1:0] bru_data = '0;
-   logic [1:0]                                      bru_filled = 'b0;
+   logic [3:0]                                      bru_filled = 'b0;
    logic                                            bru_reserve = 'b0;
    wire                                             bru_ready;
 
