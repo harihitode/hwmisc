@@ -28,6 +28,7 @@ module reorder_buffer
     input logic                                        o_ready,
 
     input logic                                        cdb_valid,
+    input logic                                        cdb_exception,
     input logic [CDB_W-1:0]                            cdb,
 
     input logic                                        nrst
@@ -39,13 +40,13 @@ module reorder_buffer
    station_t update_station [2**N_ROB_W-1:0] = '{default:'0};
    station_t head_station = '0;
 
-   logic [2**N_ROB_W-1:0]                                      rob_reserve;
-   logic [2**N_ROB_W-1:0]                                      rob_release;
+   logic [2**N_ROB_W-1:0]                              rob_reserve;
+   logic [2**N_ROB_W-1:0]                              rob_release;
 
-   logic [N_ROB_W-1:0]                                         rob_tail = 'h0;
-   logic [N_ROB_W-1:0]                                         rob_tail_n;
-   logic [N_ROB_W-1:0]                                         rob_head = 'h0;
-   logic [N_ROB_W-1:0]                                         rob_head_n;
+   logic [N_ROB_W-1:0]                                 rob_tail = 'h0;
+   logic [N_ROB_W-1:0]                                 rob_tail_n;
+   logic [N_ROB_W-1:0]                                 rob_head = 'h0;
+   logic [N_ROB_W-1:0]                                 rob_head_n;
 
    assign o_valid = head_station.valid & head_station.ready;
    always_comb head_station <= station[$unsigned(rob_head)];
