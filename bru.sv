@@ -3,7 +3,7 @@
 import fcpu_pkg::*;
 
 module branch_unit
-  #(localparam N_OPERANDS = 3)
+  #(localparam N_OPERANDS = 4)
    (
     input logic                                                     clk,
     // reserve
@@ -63,8 +63,15 @@ module branch_unit
       endcase
    end
 
-   assign pred_miss_dst = dst[CRAM_ADDR_W-1:0];
-   assign pred_miss = condition ^ pred_condition;
+   always_comb begin
+      if (opcode == I_JMPR) begin
+         pred_miss <= 'b1;
+         pred_miss_dst <= a1;
+      end else begin
+         pred_miss <= condition ^ pred_condition;
+         pred_miss_dst <= dst[CRAM_ADDR_W-1:0];
+      end
+   end
 
    always_ff @(posedge clk) begin
       if (nrst) begin
