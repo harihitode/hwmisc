@@ -41,7 +41,7 @@ module alu
    assign a2 = calc[0*DATA_W+:DATA_W];
    assign a2_negative = ~a2 + 'h1;
    assign o_valid = calc_valid;
-   assign calc_ready = (calc_valid && o_ready) || ~calc_valid;
+   assign calc_ready = (calc_valid & o_ready) | ~calc_valid;
 
    always_comb begin
       case (opcode)
