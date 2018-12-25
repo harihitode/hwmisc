@@ -22,6 +22,10 @@ module branch_unit
     // branch miss
     output logic                                                    pred_miss,
     output logic [CRAM_ADDR_W-1:0]                                  pred_miss_dst,
+    // to cdb
+    output logic [CDB_W-1:0]                                        o_cdb,
+    output logic                                                    o_valid,
+    input logic                                                     o_ready,
     // reset
     input logic                                                     nrst
     );
@@ -40,17 +44,21 @@ module branch_unit
    logic                                                            calc_valid = 'b0;
    wire                                                             calc_ready;
 
-   assign opcode = calc[2*DATA_W+:INSTR_W];
+   assign opcode = calc[4*DATA_W+:INSTR_W];
    assign a1 = calc[3*DATA_W+:DATA_W];
    assign a2 = calc[2*DATA_W+:DATA_W];
    assign pred_condition = calc[1*DATA_W];
    assign dst = calc[0*DATA_W+:DATA_W];
    assign o_valid = calc_valid;
-   assign calc_ready = 'b1;
+   assign calc_ready = (calc_valid & o_ready) | ~calc_valid;
 
    assign take_flag = 'b0;
    assign rob_clear = 'b0;
    assign branch_miss = 'b0;
+
+   always_comb begin
+      o_cdb <= {calc[N_OPERANDS*DATA_W+INSTR_W+:RSV_ID_W], (DATA_W)'(pred_miss_dst)};
+   end
 
    always_comb begin
       case (opcode)
@@ -64,7 +72,10 @@ module branch_unit
    end
 
    always_comb begin
-      if (opcode == I_JMPR) begin
+      if (opcode == I_JMP) begin
+         pred_miss <= 'b0;
+         pred_miss_dst <= a1;
+      end else if (opcode == I_JMPR) begin
          pred_miss <= 'b1;
          pred_miss_dst <= a1;
       end else begin
