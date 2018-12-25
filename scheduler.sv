@@ -12,8 +12,8 @@ module scheduler
    // branch prediction
    input logic                    take_flag,
    // missed prediction
-   input logic                    pred_miss,
-   input logic [CRAM_ADDR_W-1:0]  pred_miss_dst,
+   input logic                    address_valid,
+   input logic [CRAM_ADDR_W-1:0]  address,
 
    // cram
    // Slave Interface Read Address Ports
@@ -42,8 +42,7 @@ module scheduler
    output logic                   o_current_valid,
    output logic [DATA_W-1:0]      o_current_inst,
    output logic                   o_current_taken,
-   output logic [CRAM_ADDR_W-1:0] o_taken_pc,
-   output logic [CRAM_ADDR_W-1:0] o_untaken_pc,
+   output logic [CRAM_ADDR_W-1:0] o_true_pc,
 
    input logic                    nrst
    );
@@ -78,7 +77,7 @@ module scheduler
    lut_t [1:0] lut_n;
 
    always_comb begin
-      if (pred_miss) begin
+      if (address_valid) begin
          lut_n <= '0;
       end else if (!ce) begin
          lut_n <= lut;
@@ -107,8 +106,8 @@ module scheduler
                          ) ? 'b1 : 'b0;
 
    always_comb begin
-      if (pred_miss) begin
-         s_cram_araddr_n <= pred_miss_dst;
+      if (address_valid) begin
+         s_cram_araddr_n <= address;
       end else if (!ce) begin
          s_cram_araddr_n <= s_cram_araddr;
       end else if (branch_flag && take_flag) begin
@@ -124,21 +123,7 @@ module scheduler
    assign o_current_valid = lut[0].valid;
    assign o_current_inst  = lut[0].cram_data;
    assign o_current_taken = lut[0].take_flag;
-
-   always_comb begin
-      if (branch_flag) begin
-         if (take_flag) begin
-            o_taken_pc   <= lut[0].cram_data[14:0];
-            o_untaken_pc <= lut[0].pc + NEXT_PC_WIDTH;
-         end else begin
-            o_taken_pc   <= lut[0].pc + NEXT_PC_WIDTH;
-            o_untaken_pc <= lut[0].cram_data[14:0];
-         end
-      end else begin
-         o_taken_pc   <= '0;
-         o_untaken_pc <= '0;
-      end
-   end // always_comb
+   assign o_true_pc       = lut[0].cram_data[14:0];
 
    always_latch begin
          if (!ce) begin
