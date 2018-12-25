@@ -43,13 +43,14 @@ module core
    input                       nrst
    );
 
-   logic                       take_flag = '0;
+   wire                        take_flag;
    logic                       pred_miss = '0;
    logic [CRAM_ADDR_W-1:0]     pred_miss_dst = '0;
 
    wire [CRAM_ADDR_W-1:0]      o_current_pc;
    wire                        o_current_valid;
    wire [DATA_W-1:0]           o_current_inst;
+   wire                        o_current_taken;
    wire [CRAM_ADDR_W-1:0]      o_taken_pc;
    wire [CRAM_ADDR_W-1:0]      o_untaken_pc;
 
@@ -71,7 +72,6 @@ module core
    wire                        rob_ready;
    logic                       rob_reserve = 'b0;
    logic                       rob_no_wait = 'b0;
-   logic                       rob_clear = 'b0;
    wire                        commit_valid;
    logic                       commit_ready = 'b1;
    wire                        station_t commit_data;
@@ -88,6 +88,12 @@ module core
    logic [2:0]                                      operands_filled;
    logic [RSV_ID_W+DATA_W-1:0]                      imm;
 
+   // BRU
+   logic [RSV_ID_W+INSTR_W+2*(RSV_ID_W+DATA_W)-1:0] bru_data = '0;
+   logic [1:0]                                      bru_filled = 'b0;
+   logic                                            bru_reserve = 'b0;
+   wire                                             bru_ready;
+
    // REGs
    logic                                            reg_reserve = 'b0;
    wire [N_REG_RD_PORTS-1:0]                        reg_filled;
@@ -102,8 +108,6 @@ module core
    wire [N_ROB_RD_PORTS-1:0][RSV_ID_W+DATA_W-1:0]   rob_rdData;
    wire [N_ROB_RD_PORTS-1:0]                        rob_rdData_filled;
    logic [N_ROB_RD_PORTS-1:0][RSV_ID_W-1:0]         rob_rdAddr = 'b0;
-   // other TODO
-   logic                                            branch_miss = 'b0;
 
    //
    logic                                            store_commit_valid = 'b0;
@@ -188,7 +192,20 @@ module core
            alu_filled <= {operands_filled[1], operands_filled[0]};
         end
       endcase
-   end // always_comb
+   end
+
+   always_comb bru_reservation_data : begin
+      case (opcode)
+        I_BLT, I_BEQ : begin
+           bru_data <= {rob_id, opcode, operands[1], operands[0]};
+           bru_filled <= {operands_filled[1], operands_filled[0]};
+        end
+        I_JMPR : begin
+           bru_data <= {rob_id, opcode, operands[1], imm};
+           bru_filled <= {operands_filled[1], 1'b1};
+        end
+      endcase
+   end
 
    always_comb begin
       case (opcode)
@@ -253,6 +270,15 @@ module core
       endcase
    end
 
+   always_comb def_bru_reserve : begin
+      case (opcode)
+        I_BLT, I_BEQ, I_JMPR :
+          bru_reserve <= ~halt & o_current_valid;
+        default :
+          bru_reserve <= 'b0;
+      endcase
+   end
+
    always_comb def_mfu_reserve : begin
       case (opcode)
         I_LOAD, I_LOADB, I_LOADR,
@@ -290,7 +316,7 @@ module core
    end
 
    always_comb halt_check : begin
-      if (!rob_ready || branch_miss) begin
+      if (!rob_ready || pred_miss) begin
          halt <= 'b1;
       end else begin
          case (opcode)
@@ -306,6 +332,8 @@ module core
 //           I_STOREF, I_STOREBF, I_STORERF,
            I_INPUT, I_OUTPUT :
              halt <= ~mfu_ready;
+           I_BLT, I_BEQ, I_JMPR :
+             halt <= ~bru_ready;
            default:
              halt <= 'b0;
          endcase
@@ -375,6 +403,27 @@ module core
       .nrst(nrst)
       );
 
+   branch_unit branch_unit_inst
+     (
+      .clk(clk),
+      .i_valid(bru_reserve),
+      .i_data(bru_data),
+      .i_filled(bru_filled),
+      .i_ready(bru_ready),
+
+      .cdb(cdb),
+      .cdb_valid(cdb_valid),
+
+      .take_flag(take_flag),
+      .commit_valid(commit_valid),
+      .commit_data(commit_data),
+
+      .pred_miss(pred_miss),
+      .pred_miss_dst(pred_miss_dst),
+
+      .nrst(nrst)
+      );
+
    memory_functional_unit mfu_inst
      (
       .clk(clk),
@@ -409,7 +458,7 @@ module core
    reg_inst
      (
       .clk(clk),
-      .branch_miss(branch_miss),
+      .pred_miss(pred_miss),
       .rsv(reg_reserve),
       .rob_id(rob_id),
 
@@ -439,7 +488,7 @@ module core
       .rob_data(rob_rdData),
       .rob_data_filled(rob_rdData_filled),
 
-      .rob_clear(rob_clear),
+      .rob_clear(pred_miss),
 
       .o_valid(commit_valid),
       .o_commit_data(commit_data),

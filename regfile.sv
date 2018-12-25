@@ -6,7 +6,7 @@ module register_file
   #(parameter N_RD_PORTS = 3)
   (
    input logic                                        clk,
-   input logic                                        branch_miss,
+   input logic                                        pred_miss,
    input logic                                        rsv, // reserve
    input logic [RSV_ID_W-1:0]                         rob_id,
    // from rob to reg
@@ -70,7 +70,7 @@ module register_file
    always_ff @(posedge clk) begin
       if (nrst) begin
          reg_file[$unsigned(wr_reg_id)] <= wr_reg_data;
-         if (branch_miss) begin
+         if (pred_miss) begin
             query <= '0;
          end else begin
             query <= query_n;

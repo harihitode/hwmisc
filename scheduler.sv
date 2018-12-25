@@ -41,6 +41,7 @@ module scheduler
    output logic [CRAM_ADDR_W-1:0] o_current_pc,
    output logic                   o_current_valid,
    output logic [DATA_W-1:0]      o_current_inst,
+   output logic                   o_current_taken,
    output logic [CRAM_ADDR_W-1:0] o_taken_pc,
    output logic [CRAM_ADDR_W-1:0] o_untaken_pc,
 
@@ -122,6 +123,7 @@ module scheduler
    assign o_current_pc    = lut[0].pc;
    assign o_current_valid = lut[0].valid;
    assign o_current_inst  = lut[0].cram_data;
+   assign o_current_taken = lut[0].take_flag;
 
    always_comb begin
       if (branch_flag) begin
