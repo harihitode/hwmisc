@@ -71,7 +71,6 @@ module scheduler
    logic [31:0]               s_cram_araddr_n;
    logic [31:0]               s_cram_araddr_i = 'b0;
    logic [31:0]               s_cram_araddr_d = 'b0;
-   logic                      ce_d = 'b1;
 
    lut_t [1:0] lut = 'b0;
    lut_t [1:0] lut_n;
@@ -125,18 +124,19 @@ module scheduler
    assign o_current_taken = lut[0].take_flag;
    assign o_true_pc       = lut[0].cram_data[14:0];
 
-   always_latch begin
-         if (!ce) begin
-            s_cram_araddr <= s_cram_araddr_d;
-         end else if (s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_JMP) begin
-            s_cram_araddr <= s_cram_rdata[21:0];
-         end else begin
-            s_cram_araddr <= s_cram_araddr_i;
-         end
+   always_comb begin
+      if (!nrst) begin
+         s_cram_araddr <= 'b0;
+      end else if (!ce) begin
+         s_cram_araddr <= s_cram_araddr_d;
+      end else if (s_cram_rvalid && s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_JMP) begin
+         s_cram_araddr <= s_cram_rdata[21:0];
+      end else begin
+         s_cram_araddr <= s_cram_araddr_i;
+      end
    end
 
    always_ff @(posedge clk) begin
-      ce_d <= ce;
       if (nrst) begin
          lut <= lut_n;
          s_cram_araddr_i <= s_cram_araddr_n;
