@@ -138,7 +138,7 @@ module scheduler
    end
 
    always_ff @(posedge clk) begin
-      if (nrst & ~clear) begin
+      if (nrst) begin
          lut <= lut_n;
          s_cram_araddr_i <= s_cram_araddr_n;
          s_cram_araddr_d <= s_cram_araddr;
