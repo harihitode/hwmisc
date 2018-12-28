@@ -29,6 +29,7 @@ module memory_functional_unit
     output logic [DATA_W-1:0]                                       o_data,
     input logic                                                     o_ready,
 
+    input logic                                                     clear,
     input logic                                                     nrst
     );
 
@@ -107,6 +108,7 @@ module memory_functional_unit
                o_cdb_valid <= o_ready;
             end
          end
+
       end
    end // always_comb
 
@@ -192,7 +194,7 @@ module memory_functional_unit
    end // always_comb
 
    always_ff @(posedge clk) begin
-      if (nrst) begin
+      if (nrst & ~clear) begin
          head <= head_n;
          head_buffer <= store_buffer[head_n];
          tail <= tail_n;
@@ -259,7 +261,7 @@ module memory_functional_unit
       .b_data(address),
       .b_valid(address_valid),
       .b_ready(address_ready),
-      .nrst(nrst)
+      .nrst(nrst & ~clear)
       );
 
    reservation_station
@@ -281,7 +283,7 @@ module memory_functional_unit
 
       .cdb_valid(cdb_valid),
       .cdb(cdb),
-      .nrst(nrst)
+      .nrst(nrst & ~clear)
       );
 
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin

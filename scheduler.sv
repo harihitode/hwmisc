@@ -44,6 +44,7 @@ module scheduler
    output logic                   o_current_taken,
    output logic [CRAM_ADDR_W-1:0] o_true_pc,
 
+   input logic                    clear,
    input logic                    nrst
    );
 
@@ -59,7 +60,7 @@ module scheduler
    assign s_cram_arqos = 'b0;
 
    assign s_cram_rready = 'b1;
-   assign s_cram_arvalid = nrst;
+   assign s_cram_arvalid = nrst & ~clear;
 
    typedef struct packed {
       logic [CRAM_ADDR_W-1:0] pc;
@@ -125,7 +126,7 @@ module scheduler
    assign o_true_pc       = lut[0].cram_data[14:0];
 
    always_comb begin
-      if (!nrst) begin
+      if (!nrst | clear) begin
          s_cram_araddr <= 'b0;
       end else if (!ce) begin
          s_cram_araddr <= s_cram_araddr_d;
@@ -137,7 +138,7 @@ module scheduler
    end
 
    always_ff @(posedge clk) begin
-      if (nrst) begin
+      if (nrst & ~clear) begin
          lut <= lut_n;
          s_cram_araddr_i <= s_cram_araddr_n;
          s_cram_araddr_d <= s_cram_araddr;

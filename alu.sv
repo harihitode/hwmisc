@@ -19,6 +19,7 @@ module alu
     output logic                                                    o_valid,
     input logic                                                     o_ready,
 
+    input logic                                                     clear,
     input logic                                                     nrst
     );
 
@@ -77,7 +78,7 @@ module alu
    end
 
    always_ff @(posedge clk) begin
-      if (nrst) begin
+      if (nrst & ~clear) begin
          calc <= calc_n;
          calc_valid <= calc_valid_n;
       end else begin
@@ -104,7 +105,7 @@ module alu
 
       .cdb_valid(cdb_valid),
       .cdb(cdb),
-      .nrst(nrst)
+      .nrst(nrst & ~clear)
       );
 
 endmodule

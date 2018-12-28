@@ -19,6 +19,7 @@ module register_file
    output logic [N_RD_PORTS-1:0][DATA_W+RSV_ID_W-1:0] rdData,
    output logic [N_RD_PORTS-1:0]                      rdData_filled,
 
+   input logic                                        clear,
    input logic                                        nrst
    );
 
@@ -72,10 +73,11 @@ module register_file
          reg_file[$unsigned(wr_reg_id)] <= wr_reg_data;
          if (pred_miss) begin
             query <= '0;
+            filled <= '1;
          end else begin
+            filled <= filled_n;
             query <= query_n;
          end
-         filled <= filled_n;
       end else begin
          reg_file <= '0;
          query <= '0;

@@ -20,7 +20,7 @@ module reorder_buffer
     output logic [ROB_PORT_W-1:0]                      rob_data_filled,
 
     // from branch unit
-    input logic                                        rob_clear,
+    input logic                                        clear,
 
     // to committer
     output logic                                       o_valid,
@@ -95,14 +95,17 @@ module reorder_buffer
          // }
 
          // update rob stations {
-         if (rob_clear) begin
+         if (clear) begin
             update_station[i].valid <= 'b0;
+            update_station[i].station_id <= 'b0;
+            update_station[i].dst_reg <= 'b0;
+            update_station[i].opcode <= 'b0;
          end else begin
             update_station[i].valid <= station[i].valid;
+            update_station[i].station_id <= station[i].station_id;
+            update_station[i].dst_reg <= station[i].dst_reg;
+            update_station[i].opcode <= station[i].opcode;
          end
-         update_station[i].station_id <= station[i].station_id;
-         update_station[i].dst_reg <= station[i].dst_reg;
-         update_station[i].opcode <= station[i].opcode;
 
          if (cdb_valid && $unsigned(cdb[DATA_W+:RSV_ID_W]) == i) begin
             update_station[i].ready <= 'b1;
@@ -134,7 +137,9 @@ module reorder_buffer
    // }
 
    always_comb head_countup : begin
-      if (o_valid && o_ready) begin
+      if (clear) begin
+         rob_head_n <= 0;
+      end else if (o_valid && o_ready) begin
          if (rob_head == 2**N_ROB_W-1) begin
             rob_head_n <= 0;
          end else begin
@@ -146,7 +151,9 @@ module reorder_buffer
    end // always_comb
 
    always_comb tail_countup : begin
-      if (i_valid && i_ready) begin
+      if (clear) begin
+         rob_tail_n <= 0;
+      end else if (i_valid && i_ready) begin
          if (rob_tail == 2**N_ROB_W-1) begin
             rob_tail_n <= 0;
          end else begin
