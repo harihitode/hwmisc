@@ -1,4 +1,6 @@
 `timescale 1 ns / 1 ps
+// `include "fcpu_definitions.svh"
+// import fcpu_pkg::*;
 
 module fcpu_tb ();
 
@@ -59,54 +61,35 @@ module fcpu_tb ();
    wire        s_axi_awvalid;
    logic       s_axi_awready = 'b1;
    // Slave Interface Write Data Ports
-   wire [127:0] s_axi_wdata;
-   wire [15:0]  s_axi_wstrb;
-   wire         s_axi_wlast;
-   wire         s_axi_wvalid;
-   logic        s_axi_wready = 'b1;
+   wire [31:0] s_axi_wdata;
+   wire [3:0]  s_axi_wstrb;
+   wire        s_axi_wlast;
+   wire        s_axi_wvalid;
+   logic       s_axi_wready = 'b1;
    // Slave Interface Write Response Ports
-   wire         s_axi_bready;
-   logic [3:0]  s_axi_bid = 'b0;
-   logic [1:0]  s_axi_bresp = 'b0;
-   logic        s_axi_bvalid = 'b1;
+   wire        s_axi_bready;
+   logic [3:0] s_axi_bid = 'b0;
+   logic [1:0] s_axi_bresp = 'b0;
+   logic       s_axi_bvalid = 'b1;
    // Slave Interface Read Address Ports
-   wire [3:0]   s_axi_arid;
-   wire [27:0]  s_axi_araddr;
-   wire [7:0]   s_axi_arlen;
-   wire [2:0]   s_axi_arsize;
-   wire [1:0]   s_axi_arburst;
-   wire [0:0]   s_axi_arlock;
-   wire [3:0]   s_axi_arcache;
-   wire [2:0]   s_axi_arprot;
-   wire [3:0]   s_axi_arqos;
-   wire         s_axi_arvalid;
-   logic        s_axi_arready = 'b1;
+   wire [3:0]  s_axi_arid;
+   wire [27:0] s_axi_araddr;
+   wire [7:0]  s_axi_arlen;
+   wire [2:0]  s_axi_arsize;
+   wire [1:0]  s_axi_arburst;
+   wire [0:0]  s_axi_arlock;
+   wire [3:0]  s_axi_arcache;
+   wire [2:0]  s_axi_arprot;
+   wire [3:0]  s_axi_arqos;
+   wire        s_axi_arvalid;
+   logic       s_axi_arready = 'b1;
    // Slave Interface Read Data Ports
-   wire         s_axi_rready;
-   logic [3:0]  s_axi_rid = 'b0;
-   logic [127:0] s_axi_rdata = 'b0;
-   logic [1:0]   s_axi_rresp = 'b0;
-   logic         s_axi_rlast = 'b1;
-   logic         s_axi_rvalid = 'b0;
-
-   logic [8388606:0][31:0] gmem = 'b0;
-   logic [27:0]            s_axi_awaddr_d = 'b0;
-   logic [27:0]            s_axi_araddr_d = 'b0;
-
-   always_ff @(posedge clk) begin
-      if (s_axi_awvalid && s_axi_awaddr) begin
-         s_axi_awaddr_d <= s_axi_awaddr;
-      end
-      if (s_axi_wvalid && s_axi_wready) begin
-         gmem[$unsigned(s_axi_araddr_d)] <= s_axi_wdata;
-      end
-      if (s_axi_arvalid && s_axi_araddr) begin
-         s_axi_araddr_d <= s_axi_araddr;
-      end
-      if (s_axi_rvalid && s_axi_rready) begin
-         s_axi_rdata <= gmem[$unsigned(s_axi_araddr_d)];
-      end
-   end
+   wire        s_axi_rready;
+   logic [3:0] s_axi_rid = 'b0;
+   logic [31:0] s_axi_rdata = 'b0;
+   logic [1:0]  s_axi_rresp = 'b0;
+   logic        s_axi_rlast = 'b1;
+   logic        s_axi_rvalid = 'b0;
 
    fcpu fcpu_inst
      (
@@ -234,40 +217,74 @@ module fcpu_tb ();
       .rstb_busy()
       );
 
+   global_mem gmem_inst
+     (
+      .m0_araddr(s_axi_araddr),
+      .m0_arlen(s_axi_arlen),
+      .m0_arvalid(s_axi_arvalid),
+      .m0_arready(s_axi_arready),
+      .m0_arid(s_axi_arid),
+
+      .m0_rdata(s_axi_rdata),
+      .m0_rlast(s_axi_rlast),
+      .m0_rvalid(s_axi_rvalid),
+      .m0_rready(s_axi_rready),
+      .m0_rid(s_axi_rid),
+
+      .m0_awaddr(s_axi_awaddr),
+      .m0_awlen(s_axi_awlen),
+      .m0_awvalid(s_axi_awvalid),
+      .m0_awready(s_axi_awready),
+      .m0_awid(s_axi_awid),
+
+      .m0_wdata(s_axi_wdata),
+      .m0_wstrb(s_axi_wstrb),
+      .m0_wlast(s_axi_wlast),
+      .m0_wvalid(s_axi_wvalid),
+      .m0_wready(s_axi_wready),
+
+      .m0_bvalid(s_axi_bvalid),
+      .m0_bready(s_axi_bready),
+      .m0_bid(s_axi_bid),
+
+      .clk(clk),
+      .nrst(nrst)
+      );
+
    initial begin
       #5000 nrst <= 'b1;
-      // #7000 nrst <= 'b0;
-      // #5000 nrst <= 'b1;
-      // #15000;
-      // send_valid <= 'b1;
-      // send_data <='h11;
-      // @(posedge clk);
-      // send_valid <= 'b0;
-      // #15000;
-      // send_valid <= 'b1;
-      // send_data <='h22;
-      // @(posedge clk);
-      // send_valid <= 'b0;
-      // #15000;
-      // send_valid <= 'b1;
-      // send_data <='h33;
-      // @(posedge clk);
-      // send_valid <= 'b0;
-      // #15000;
-      // send_valid <= 'b1;
-      // send_data <='h44;
-      // @(posedge clk);
-      // send_valid <= 'b0;
-      // #15000;
-      // send_valid <= 'b1;
-      // send_data <='h55;
-      // @(posedge clk);
-      // send_valid <= 'b0;
-      // #15000;
-      // send_valid <= 'b1;
-      // send_data <='h66;
-      // @(posedge clk);
-      // send_valid <= 'b0;
+      #7000 nrst <= 'b0;
+      #5000 nrst <= 'b1;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h11;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h22;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h33;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h44;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h55;
+      @(posedge clk);
+      send_valid <= 'b0;
+      #15000;
+      send_valid <= 'b1;
+      send_data <='h66;
+      @(posedge clk);
+      send_valid <= 'b0;
    end
 
 endmodule

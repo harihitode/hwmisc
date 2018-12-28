@@ -4,109 +4,109 @@ import fcpu_pkg::*;
 
 module memory_management_unit
   (
-   input logic                clk,
+   input logic                      clk,
    // core to mmu {
-   input logic [RSV_ID_W-1:0] rsv_id,
-   input logic                valid,
-   input logic [DATA_W-1:0]   data,
-   input logic [DATA_W-1:0]   address,
-   input logic [INSTR_W-1:0]  opcode,
-   output logic               ready,
+   input logic [RSV_ID_W-1:0]       rsv_id,
+   input logic                      valid,
+   input logic [DATA_W-1:0]         data,
+   input logic [DATA_W-1:0]         address,
+   input logic [INSTR_W-1:0]        opcode,
+   output logic                     ready,
    // }
    // GMEM {
    // Slave Interface Write Address Ports
-   output logic [3:0]         s_axi_awid,
-   output logic [27:0]        s_axi_awaddr,
-   output logic [7:0]         s_axi_awlen,
-   output logic [2:0]         s_axi_awsize,
-   output logic [1:0]         s_axi_awburst,
-   output logic [0:0]         s_axi_awlock,
-   output logic [3:0]         s_axi_awcache,
-   output logic [2:0]         s_axi_awprot,
-   output logic [3:0]         s_axi_awqos,
-   output logic               s_axi_awvalid,
-   input logic                s_axi_awready,
+   output logic [ID_WIDTH-1:0]      s_axi_awid,
+   output logic [GMEM_ADDR_W-1:0]   s_axi_awaddr,
+   output logic [7:0]               s_axi_awlen,
+   output logic [2:0]               s_axi_awsize,
+   output logic [1:0]               s_axi_awburst,
+   output logic [0:0]               s_axi_awlock,
+   output logic [3:0]               s_axi_awcache,
+   output logic [2:0]               s_axi_awprot,
+   output logic [3:0]               s_axi_awqos,
+   output logic                     s_axi_awvalid,
+   input logic                      s_axi_awready,
    // Slave Interface Write Data Ports
-   output logic [127:0]       s_axi_wdata,
-   output logic [15:0]        s_axi_wstrb,
-   output logic               s_axi_wlast,
-   output logic               s_axi_wvalid,
-   input logic                s_axi_wready,
+   output logic [GMEM_DATA_W-1:0]   s_axi_wdata,
+   output logic [GMEM_DATA_W/8-1:0] s_axi_wstrb,
+   output logic                     s_axi_wlast,
+   output logic                     s_axi_wvalid,
+   input logic                      s_axi_wready,
    // Slave Interface Write Response Ports
-   output logic               s_axi_bready,
-   input logic [3:0]          s_axi_bid,
-   input logic [1:0]          s_axi_bresp,
-   input logic                s_axi_bvalid,
+   output logic                     s_axi_bready,
+   input logic [ID_WIDTH-1:0]       s_axi_bid,
+   input logic [1:0]                s_axi_bresp,
+   input logic                      s_axi_bvalid,
    // Slave Interface Read Address Ports
-   output logic [3:0]         s_axi_arid,
-   output logic [27:0]        s_axi_araddr,
-   output logic [7:0]         s_axi_arlen,
-   output logic [2:0]         s_axi_arsize,
-   output logic [1:0]         s_axi_arburst,
-   output logic [0:0]         s_axi_arlock,
-   output logic [3:0]         s_axi_arcache,
-   output logic [2:0]         s_axi_arprot,
-   output logic [3:0]         s_axi_arqos,
-   output logic               s_axi_arvalid,
-   input logic                s_axi_arready,
+   output logic [ID_WIDTH-1:0]      s_axi_arid,
+   output logic [GMEM_ADDR_W-1:0]   s_axi_araddr,
+   output logic [7:0]               s_axi_arlen,
+   output logic [2:0]               s_axi_arsize,
+   output logic [1:0]               s_axi_arburst,
+   output logic [0:0]               s_axi_arlock,
+   output logic [3:0]               s_axi_arcache,
+   output logic [2:0]               s_axi_arprot,
+   output logic [3:0]               s_axi_arqos,
+   output logic                     s_axi_arvalid,
+   input logic                      s_axi_arready,
    // Slave Interface Read Data Ports
-   output logic               s_axi_rready,
-   input logic [3:0]          s_axi_rid,
-   input logic [127:0]        s_axi_rdata,
-   input logic [1:0]          s_axi_rresp,
-   input logic                s_axi_rlast,
-   input logic                s_axi_rvalid,
+   output logic                     s_axi_rready,
+   input logic [ID_WIDTH-1:0]       s_axi_rid,
+   input logic [GMEM_DATA_W-1:0]    s_axi_rdata,
+   input logic [1:0]                s_axi_rresp,
+   input logic                      s_axi_rlast,
+   input logic                      s_axi_rvalid,
    // }
    // I/O {
    // Slave Interface Write Address Ports
-   output logic [3:0]         io_awid,
-   output logic [27:0]        io_awaddr,
-   output logic [7:0]         io_awlen,
-   output logic [2:0]         io_awsize,
-   output logic [1:0]         io_awburst,
-   output logic [0:0]         io_awlock,
-   output logic [3:0]         io_awcache,
-   output logic [2:0]         io_awprot,
-   output logic [3:0]         io_awqos,
-   output logic               io_awvalid,
-   input logic                io_awready,
+   output logic [ID_WIDTH-1:0]      io_awid,
+   output logic [27:0]              io_awaddr,
+   output logic [7:0]               io_awlen,
+   output logic [2:0]               io_awsize,
+   output logic [1:0]               io_awburst,
+   output logic [0:0]               io_awlock,
+   output logic [3:0]               io_awcache,
+   output logic [2:0]               io_awprot,
+   output logic [3:0]               io_awqos,
+   output logic                     io_awvalid,
+   input logic                      io_awready,
    // Slave Interface Write Data Ports
-   output logic [7:0]         io_wdata,
-   output logic [15:0]        io_wstrb,
-   output logic               io_wlast,
-   output logic               io_wvalid,
-   input logic                io_wready,
+   output logic [7:0]               io_wdata,
+   output logic [15:0]              io_wstrb,
+   output logic                     io_wlast,
+   output logic                     io_wvalid,
+   input logic                      io_wready,
    // Slave Interface Write Response Ports
-   output logic               io_bready,
-   input logic [3:0]          io_bid,
-   input logic [1:0]          io_bresp,
-   input logic                io_bvalid,
+   output logic                     io_bready,
+   input logic [ID_WIDTH-1:0]       io_bid,
+   input logic [1:0]                io_bresp,
+   input logic                      io_bvalid,
    // Slave Interface Read Address Ports
-   output logic [3:0]         io_arid,
-   output logic [27:0]        io_araddr,
-   output logic [7:0]         io_arlen,
-   output logic [2:0]         io_arsize,
-   output logic [1:0]         io_arburst,
-   output logic [0:0]         io_arlock,
-   output logic [3:0]         io_arcache,
-   output logic [2:0]         io_arprot,
-   output logic [3:0]         io_arqos,
-   output logic               io_arvalid,
-   input logic                io_arready,
+   output logic [ID_WIDTH-1:0]      io_arid,
+   output logic [27:0]              io_araddr,
+   output logic [7:0]               io_arlen,
+   output logic [2:0]               io_arsize,
+   output logic [1:0]               io_arburst,
+   output logic [0:0]               io_arlock,
+   output logic [3:0]               io_arcache,
+   output logic [2:0]               io_arprot,
+   output logic [3:0]               io_arqos,
+   output logic                     io_arvalid,
+   input logic                      io_arready,
    // Slave Interface Read Data Ports
-   output logic               io_rready,
-   input logic [3:0]          io_rid,
-   input logic [7:0]          io_rdata,
-   input logic [1:0]          io_rresp,
-   input logic                io_rlast,
-   input logic                io_rvalid,
+   output logic                     io_rready,
+   input logic [ID_WIDTH-1:0]       io_rid,
+   input logic [7:0]                io_rdata,
+   input logic [1:0]                io_rresp,
+   input logic                      io_rlast,
+   input logic                      io_rvalid,
    // }
 
-   output logic [CDB_W-1:0]   o_cdb,
-   output logic               o_cdb_valid,
-   input logic                o_cdb_ready,
+   output logic [CDB_W-1:0]         o_cdb,
+   output logic                     o_cdb_valid,
+   input logic                      o_cdb_ready,
 
-   input logic                nrst
+   input logic                      nrst
    );
 
    logic [RSV_ID_W-1:0]      rsv_id_d = 'b0;
@@ -125,8 +125,8 @@ module memory_management_unit
    assign s_axi_awcache = 'h0;
    assign s_axi_awqos = 'b0;
    assign s_axi_awburst = 'b1;
-   assign s_axi_awlen = 'h0;
-   assign s_axi_awsize = 'h4;
+   assign s_axi_awlen = ($size(s_axi_awlen))'($unsigned((2**BURST_W)-1));  // once per burst
+   assign s_axi_awsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
 
    assign s_axi_arid = 4'b0;
    assign s_axi_arprot = 'b0;
@@ -134,8 +134,8 @@ module memory_management_unit
    assign s_axi_arcache = 'h0;
    assign s_axi_arqos = 'b0;
    assign s_axi_arburst = 'b1;
-   assign s_axi_arlen = 'h0;
-   assign s_axi_arsize = 'h4;
+   assign s_axi_arlen = ($size(s_axi_arlen))'($unsigned((2**BURST_W)-1));
+   assign s_axi_arsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
    // }
 
    assign s_axi_araddr = 28'(address_d);

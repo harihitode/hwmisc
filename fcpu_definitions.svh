@@ -9,11 +9,12 @@ package fcpu_pkg;
    localparam REG_ADDR_W = 5;
    localparam PHT_ADDR_W = 18; // pattern history table
    localparam PHT_DATA_W = 2;
-   localparam GMEM_ADDR_W = 9;
-   localparam GMEM_N_BANK_W = 1; // Bitwidth of the number of words of a single AXI data interface, i.e. the global memory bus
+   localparam GMEM_ADDR_W = 28;
+   localparam GMEM_N_BANK_W = 0; // Bitwidth of the number of words of a single AXI data interface, i.e. the global memory bus
    localparam GMEM_N_BANK = 2**GMEM_N_BANK_W;
    localparam GMEM_DATA_W = GMEM_N_BANK * DATA_W;
-   localparam ID_WIDTH = 6;    // Bitwidth of the read & write id channels of AXI4
+   localparam BURST_W = 0;
+   localparam ID_WIDTH = 4;    // Bitwidth of the read & write id channels of AXI4
    localparam CDB_W = RSV_ID_W+DATA_W; // common data bus
 
    localparam INSTR_W = 6;
