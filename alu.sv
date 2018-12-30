@@ -31,10 +31,11 @@ module alu
    logic [DATA_W-1:0] a_shift = '0;
 
    wire [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0] calc_n;
-   logic [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0] calc = '0;;
+   wire [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0] calc;
    // inner signals
    wire                                             calc_valid_n;
-   logic                                            calc_valid = 'b0;
+   wire                                             calc_valid;
+   wire                                             calc_ready_n;
    wire                                             calc_ready;
 
    assign opcode = calc[2*DATA_W+:INSTR_W];
@@ -42,7 +43,7 @@ module alu
    assign a2 = calc[0*DATA_W+:DATA_W];
    assign a2_negative = ~a2 + 'h1;
    assign o_valid = calc_valid;
-   assign calc_ready = (calc_valid & o_ready) | ~calc_valid;
+   assign calc_ready = o_ready;
 
    always_comb begin
       case (opcode)
@@ -57,7 +58,7 @@ module alu
         I_SUB, I_SUBI :
           pre_ret <= a1 + a2_negative;
         I_SAVE :
-          pre_ret <= a1 + 'd2;
+          pre_ret <= a1 + 'h8;
         I_AND :
           pre_ret <= a1 & a2;
         I_OR :
@@ -77,15 +78,22 @@ module alu
       o_cdb <= {calc[2*DATA_W+INSTR_W+:RSV_ID_W], pre_ret};
    end
 
-   always_ff @(posedge clk) begin
-      if (nrst & ~clear) begin
-         calc <= calc_n;
-         calc_valid <= calc_valid_n;
-      end else begin
-         calc <= 'b0;
-         calc_valid <= 'b0;
-      end
-   end
+   fifo
+     #(.FIFO_DEPTH_W(0),
+       .DATA_W(RSV_ID_W+INSTR_W+N_OPERANDS*DATA_W))
+   pre_calculation_buffer
+     (
+      .clk(clk),
+
+      .a_data(calc_n),
+      .a_valid(calc_valid_n),
+      .a_ready(calc_ready_n),
+      .b_data(calc),
+      .b_valid(calc_valid),
+      .b_ready(calc_ready),
+
+      .nrst(nrst & ~clear)
+      );
 
    reservation_station
      #(.N_OPERANDS(N_OPERANDS),
@@ -101,7 +109,7 @@ module alu
 
       .o_valid(calc_valid_n),
       .o_data(calc_n),
-      .o_ready(calc_ready),
+      .o_ready(calc_ready_n),
 
       .cdb_valid(cdb_valid),
       .cdb(cdb),
