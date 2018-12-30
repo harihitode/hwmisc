@@ -25,18 +25,21 @@ module reservation_station
     input logic                                                     nrst
     );
 
-   logic [2**N_STATIONS_W-1:0]                                      station_valid_n = '0;
-   logic [2**N_STATIONS_W-1:0]                                      station_valid = '0;
-   logic [2**N_STATIONS_W-1:0]                                      station_ordered_n = '0;
-   logic [2**N_STATIONS_W-1:0]                                      station_ordered = '0;
-   logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0]                      station_filled_n = '0;
-   logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0]                      station_filled = '0;
-   // dest_rob_if, opcode, ordered_tag
-   logic [2**N_STATIONS_W-1:0][RSV_ID_W+INSTR_W+N_STATIONS_W-1:0]   station_n = '0;
-   logic [2**N_STATIONS_W-1:0][RSV_ID_W+INSTR_W+N_STATIONS_W-1:0]   station = '0;
+   typedef struct                                                   packed {
+      logic                                                         valid;
+      logic                                                         ordered;
+      logic [N_STATIONS_W-1:0]                                      ordered_st_id;
+      logic [RSV_ID_W-1:0]                                          rob_id;
+      logic [INSTR_W-1:0]                                           opcode;
+      logic [N_OPERANDS-1:0]                                        filled;
+      logic [N_OPERANDS-1:0][RSV_ID_W-1:0]                          data_rsv_id;
+      logic [N_OPERANDS-1:0][DATA_W-1:0]                            data;
+   } rsv_station_t;
 
-   logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0][RSV_ID_W+DATA_W-1:0] station_data_n = '0;
-   logic [2**N_STATIONS_W-1:0][N_OPERANDS-1:0][RSV_ID_W+DATA_W-1:0] station_data = '0;
+   // dest_rob_if, opcode, ordered_tag
+
+   rsv_station_t [2**N_STATIONS_W-1:0] station = '0;
+   rsv_station_t [2**N_STATIONS_W-1:0] station_n = '0;
 
    int                                                              delete_st = 0;
    int                                                              empty_st = 0;
@@ -57,7 +60,7 @@ module reservation_station
    always_comb begin
       ordered <= 'b1;
       for (int i = 0; i < 2**N_STATIONS_W; i++) begin
-         if (station_valid[i]) begin
+         if (station[i].valid) begin
             ordered <= ~i_ordered;
          end
       end
@@ -66,50 +69,59 @@ module reservation_station
    generate begin for (genvar i = 0; i < 2**N_STATIONS_W; i++) begin
       for (genvar j = 0; j < N_OPERANDS; j++) begin
          always_comb begin
-            station_filled_n[i][j] <= station_filled[i][j];
-            station_data_n[i][j] <= station_data[i][j];
+            station_n[i].filled[j] <= station[i].filled[j];
+            station_n[i].data_rsv_id[j] <= station[i].data_rsv_id[j];
+            station_n[i].data[j] <= station[i].data[j];
             if ((i == empty_st) && i_valid && i_ready) begin
-               station_filled_n[i][j] <= i_filled[j];
-               station_data_n[i][j] <= i_data[j*(RSV_ID_W+DATA_W)+:(RSV_ID_W+DATA_W)];
+               station_n[i].filled[j] <= i_filled[j];
+               station_n[i].data_rsv_id[j] <= i_data[j*(RSV_ID_W+DATA_W)+DATA_W+:RSV_ID_W];
+               station_n[i].data[j] <= i_data[j*(RSV_ID_W+DATA_W)+:DATA_W];
             end else if ((i == delete_st) && o_valid && o_ready) begin
-               station_filled_n[i][j] <= 'b0;
-               station_data_n[i][j] <= 'b0;
+               station_n[i].filled[j] <= 'b0;
+               station_n[i].data_rsv_id[j] <= 'b0;
+               station_n[i].data[j] <= 'b0;
             end else if (cdb_valid) begin
-               if (station_valid[i] && ~station_filled[i] && cdb_valid &&
-                   station_data[i][j][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
-                  station_filled_n[i][j] <= 'b1;
-                  station_data_n[i][j] <= cdb;
+               if (station[i].valid && ~station[i].filled && cdb_valid &&
+                   station[i].data_rsv_id[j] == cdb[DATA_W+:RSV_ID_W]) begin
+                  station_n[i].filled[j] <= 'b1;
+                  station_n[i].data_rsv_id[j] <= cdb[DATA_W+:RSV_ID_W];
+                  station_n[i].data[j] <= cdb[0+:DATA_W];
                end
             end
          end
       end
 
       always_comb begin
-         station_valid_n[i] <= station_valid[i];
-         station_ordered_n[i] <= station_ordered[i];
-         station_n[i] <= station[i];
+         station_n[i].valid <= station[i].valid;
+         station_n[i].ordered <= station[i].ordered;
+         station_n[i].ordered_st_id <= station[i].ordered_st_id;
+         station_n[i].opcode <= station[i].opcode;
+         station_n[i].rob_id <= station[i].rob_id;
          if ((i == empty_st) && i_valid && i_ready) begin
             // new entry
-            station_valid_n[i] <= 'b1;
+            station_n[i].valid <= 'b1;
             if (ordered_id ==
-                (N_STATIONS_W)'(station[delete_st][0+:N_STATIONS_W] + 'b1)
+                (N_STATIONS_W)'(station[delete_st].ordered_st_id + 'b1)
                 && o_valid && o_ready) begin
-               station_ordered_n[i] <= 'b1;
+               station_n[i].ordered <= 'b1;
             end else begin
-               station_ordered_n[i] <= ordered;
+               station_n[i].ordered <= ordered;
             end
             // the last RSV_ID is dependency of ordering
-            station_n[i] <= {i_data[N_OPERANDS*(RSV_ID_W+DATA_W)+:RSV_ID_W+INSTR_W],
-                             ordered_id};
+            station_n[i].opcode <= i_data[N_OPERANDS*(RSV_ID_W+DATA_W)+:INSTR_W];
+            station_n[i].rob_id <= i_data[N_OPERANDS*(RSV_ID_W+DATA_W)+INSTR_W+:RSV_ID_W];
+            station_n[i].ordered_st_id <= ordered_id;
          end else if ((i == delete_st) && o_valid && o_ready) begin
             // delete entry
-            station_valid_n[i] <= 'b0;
-            station_ordered_n[i] <= 'b0;
-            station_n[i] <= 'b0;
-         end else if ((station[i][0+:N_STATIONS_W] ==
-                       (N_STATIONS_W)'(station[delete_st][0+:N_STATIONS_W] + 'b1))
+            station_n[i].valid <= '0;
+            station_n[i].ordered <= '0;
+            station_n[i].ordered_st_id <= '0;
+            station_n[i].opcode <= '0;
+            station_n[i].rob_id <= '0;
+         end else if (station[i].ordered_st_id ==
+                      (N_STATIONS_W)'(station[delete_st].ordered_st_id + 'b1)
                       && o_valid && o_ready) begin
-            station_ordered_n[i] <= 1'b1;
+            station_n[i].ordered <= 1'b1;
          end
       end
    end end
@@ -117,19 +129,21 @@ module reservation_station
 
    always_comb begin
       // check whether the operands are served
-      o_valid <= station_valid[delete_st] &
-                 station_ordered[delete_st] &
-                 (&station_filled[delete_st]);
-      o_data[N_OPERANDS*DATA_W+:(RSV_ID_W+INSTR_W)] <= station[delete_st][N_STATIONS_W+:RSV_ID_W+INSTR_W];
+      o_valid <= station[delete_st].valid &
+                 station[delete_st].ordered &
+                 (&station[delete_st].filled);
+      o_data[N_OPERANDS*DATA_W+:(RSV_ID_W+INSTR_W)] <= {station[delete_st].rob_id,
+                                                        station[delete_st].opcode};
       for (int i = 0; i < N_OPERANDS; i++) begin
-         o_data[i*DATA_W+:DATA_W] <= station_data[delete_st][i];
+         o_data[i*DATA_W+:DATA_W] <= station[delete_st].data[i];
       end
    end
 
    always_comb begin
       for (int i = 0; i < 2**N_STATIONS_W; i++) delete_check : begin
          delete_st <= i;
-         if (station_valid[i] && station_ordered[i]) begin
+         if (station[i].valid && station[i].ordered &&
+             (&station[i].filled)) begin
             break;
          end
       end
@@ -139,7 +153,7 @@ module reservation_station
       i_ready <= 'b0;
       for (int i = 0; i < 2**N_STATIONS_W; i++) ready_check : begin
          empty_st <= i;
-         if (!station_valid[i]) begin // valid
+         if (!station[i].valid) begin // valid
             i_ready <= 'b1;
             break;
          end
@@ -148,17 +162,9 @@ module reservation_station
 
    always_ff @(posedge clk) update : begin
       if (nrst) begin
-         station_valid <= station_valid_n;
-         station_ordered <= station_ordered_n;
-         station_filled <= station_filled_n;
          station <= station_n;
-         station_data <= station_data_n;
       end else begin
-         station_valid <= 'b0;
-         station_ordered <= 'b0;
-         station_filled <= 'b0;
          station <= 'b0;
-         station_data <= 'b0;
       end
    end
 
