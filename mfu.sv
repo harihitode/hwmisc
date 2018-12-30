@@ -232,7 +232,7 @@ module memory_functional_unit
              address[3*DATA_W+INSTR_W+:RSV_ID_W] == store_buffer[i].rob_id) begin
             store_buffer_n[i].address <= address[2*DATA_W+:DATA_W];
             store_buffer_n[i].addr_ready <= 'b1;
-         end else if (address_valid &&
+         end else if (address_valid && address_store &&
                       address[2*DATA_W+:DATA_W] == store_buffer[i].address) begin
             store_buffer_n[i].override <= 'b1;
          end
