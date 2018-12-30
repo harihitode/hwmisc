@@ -3,13 +3,14 @@
 import fcpu_pkg::*;
 
 module branch_unit
-  #(localparam N_OPERANDS = 4)
+  #(localparam N_OPERANDS = 3)
    (
     input logic                                                     clk,
     // reserve
     input logic [RSV_ID_W+INSTR_W+N_OPERANDS*(RSV_ID_W+DATA_W)-1:0] i_data,
     input logic                                                     i_valid,
     input logic [N_OPERANDS-1:0]                                    i_filled,
+    input logic                                                     i_condition,
     output logic                                                    i_ready,
     // from CDB
     input logic [CDB_W-1:0]                                         cdb,
@@ -20,12 +21,16 @@ module branch_unit
     input logic                                                     commit_valid,
     input                                                           station_t commit_data,
     // branch miss
+    input logic [INSTR_W-1:0]                                       commit_opcode,
+    input logic [N_STATIONS_W-1:0]                                  commit_id,
+    output logic                                                    pred_condition,
+    output logic                                                    true_condition,
     output logic                                                    pred_miss,
-    output logic [CRAM_ADDR_W-1:0]                                  pred_miss_dst,
     // to cdb
     output logic [CDB_W-1:0]                                        o_cdb,
     output logic                                                    o_valid,
     input logic                                                     o_ready,
+    input logic                                                     clear,
     // reset
     input logic                                                     nrst
     );
@@ -33,66 +38,85 @@ module branch_unit
    wire [INSTR_W-1:0]                                               opcode;
    wire [DATA_W-1:0]                                                a1;
    wire [DATA_W-1:0]                                                a2;
-   logic                                                            condition = '0;
-   wire                                                             pred_condition;
    wire [DATA_W-1:0]                                                dst;
 
    wire [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0]                  calc_n;
-   logic [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0]                 calc = '0;;
+   wire [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0]                  calc;
    // inner signals
    wire                                                             calc_valid_n;
-   logic                                                            calc_valid = 'b0;
+   wire                                                             calc_valid;
+   wire                                                             calc_ready_n;
    wire                                                             calc_ready;
 
-   assign opcode = calc[4*DATA_W+:INSTR_W];
-   assign a1 = calc[3*DATA_W+:DATA_W];
-   assign a2 = calc[2*DATA_W+:DATA_W];
-   assign pred_condition = calc[1*DATA_W];
+   logic [2**N_STATIONS_W-1:0]                                      pred_conditions = 'b0;
+   logic [2**N_STATIONS_W-1:0]                                      true_conditions = 'b0;
+
+   assign pred_condition = pred_conditions[commit_id];
+   assign true_condition = true_conditions[commit_id];
+
+   assign opcode = calc[3*DATA_W+:INSTR_W];
+   assign a1 = calc[2*DATA_W+:DATA_W];
+   assign a2 = calc[1*DATA_W+:DATA_W];
    assign dst = calc[0*DATA_W+:DATA_W];
    assign o_valid = calc_valid;
-   assign calc_ready = (calc_valid & o_ready) | ~calc_valid;
+   assign calc_ready = o_ready;
 
-   assign take_flag = 'b0;
-   assign rob_clear = 'b0;
-   assign branch_miss = 'b0;
+   assign take_flag = 'b0; // TODO
 
    always_comb begin
-      o_cdb <= {calc[N_OPERANDS*DATA_W+INSTR_W+:RSV_ID_W], (DATA_W)'(pred_miss_dst)};
-   end
-
-   always_comb begin
-      case (opcode)
-        I_BLT :
-          condition <= (a1 > a2) ? 'b1 : 'b0;
-        I_BEQ :
-          condition <= (a1 == a2) ? 'b1 : 'b0;
-        default:
-          condition <= 'b0;
-      endcase
-   end
-
-   always_comb begin
-      if (opcode == I_JMP) begin
-         pred_miss <= 'b0;
-         pred_miss_dst <= a1;
-      end else if (opcode == I_JMPR) begin
-         pred_miss <= 'b1;
-         pred_miss_dst <= a1;
-      end else begin
-         pred_miss <= condition ^ pred_condition;
-         pred_miss_dst <= dst[CRAM_ADDR_W-1:0];
-      end
+      o_cdb <= {calc[N_OPERANDS*DATA_W+INSTR_W+:RSV_ID_W], dst};
    end
 
    always_ff @(posedge clk) begin
-      if (nrst) begin
-         calc <= calc_n;
-         calc_valid <= calc_valid_n;
+      case (opcode)
+        I_BLT :
+          true_conditions[calc[3*DATA_W+INSTR_W+:RSV_ID_W]] <= (a1 > a2) ? 'b1 : 'b0;
+        I_BEQ :
+          true_conditions[calc[3*DATA_W+INSTR_W+:RSV_ID_W]] <= (a1 == a2) ? 'b1 : 'b0;
+      endcase
+   end
+
+   always_ff @(posedge clk) begin
+      if (nrst & ~clear) begin
+         pred_conditions[N_OPERANDS*(RSV_ID_W+DATA_W)+INSTR_W+RSV_ID_W] <= i_condition;
       end else begin
-         calc <= 'b0;
-         calc_valid <= 'b0;
+         pred_conditions <= 'b0;
       end
    end
+
+   always_comb begin
+      if (commit_valid) begin
+         if (commit_opcode == I_JMP) begin
+            pred_miss <= 'b0;
+         end else if (commit_opcode == I_JMPR) begin
+            pred_miss <= 'b1;
+         end else if (commit_opcode == I_BLT ||
+                      commit_opcode == I_BEQ) begin
+            pred_miss <= true_conditions[commit_id] ^ pred_conditions[commit_id];
+         end else begin
+            pred_miss <= 'b0;
+         end
+      end else begin
+         pred_miss <= 'b0;
+      end
+   end
+
+   fifo
+     #(.FIFO_DEPTH_W(0),
+       .DATA_W(RSV_ID_W+INSTR_W+N_OPERANDS*DATA_W))
+   pre_calculation_buffer
+     (
+      .clk(clk),
+
+      .a_data(calc_n),
+      .a_valid(calc_valid_n),
+      .a_ready(calc_ready_n),
+      .b_data(calc),
+      .b_valid(calc_valid),
+      .b_ready(calc_ready),
+
+      .nrst(nrst & ~clear)
+      );
 
    reservation_station
      #(.N_OPERANDS(N_OPERANDS),
@@ -112,7 +136,7 @@ module branch_unit
 
       .cdb_valid(cdb_valid),
       .cdb(cdb),
-      .nrst(nrst)
+      .nrst(nrst & ~clear)
       );
 
 endmodule

@@ -40,12 +40,14 @@ module core
    input logic                 mmu_cdb_valid,
    output logic                mmu_cdb_ready,
    // }
+   output                      clear,
    input                       nrst
    );
 
    wire                        take_flag;
-   logic                       pred_miss = '0;
-   logic [CRAM_ADDR_W-1:0]     pred_miss_dst = '0;
+   wire                        pred_miss;
+   wire                        pred_condition;
+   wire                        true_condition;
 
    wire [CRAM_ADDR_W-1:0]      o_current_pc;
    wire                        o_current_valid;
@@ -84,18 +86,17 @@ module core
    logic [1:0]                                      alu_filled = 'b0;
    logic                                            alu_reserve = 'b0;
    wire                                             alu_ready;
-   wire                                             alu_cdb_ready;
 
    logic [2:0][RSV_ID_W+DATA_W-1:0]                 operands;
    logic [2:0]                                      operands_filled;
    logic [RSV_ID_W+DATA_W-1:0]                      imm;
 
    // BRU
-   logic [RSV_ID_W+INSTR_W+4*(RSV_ID_W+DATA_W)-1:0] bru_data = '0;
-   logic [3:0]                                      bru_filled = 'b0;
+   logic [RSV_ID_W+INSTR_W+3*(RSV_ID_W+DATA_W)-1:0] bru_data = '0;
+   logic [2:0]                                      bru_filled = 'b0;
    logic                                            bru_reserve = 'b0;
+   logic                                            bru_condition = 'b0;
    wire                                             bru_ready;
-   wire                                             bru_cdb_ready;
 
    // REGs
    logic                                            reg_reserve = 'b0;
@@ -119,7 +120,6 @@ module core
    wire                                             mfu_ready;
    logic [RSV_ID_W+INSTR_W+3*(RSV_ID_W+DATA_W)-1:0] mfu_data = '0;
    logic [2:0]                                      mfu_filled = 'b0;
-   wire                                             mfu_cdb_ready;
 
    wire [RSV_ID_W-1:0]                              o_mfu_rsv_id;
    wire                                             o_mfu_valid;
@@ -131,14 +131,16 @@ module core
    logic [CRAM_ADDR_W-1:0]                          sch_address = 'b0;
    logic                                            sch_address_valid = 'b0;
 
-   assign units_cdb_valid[2] = mmu_cdb_valid;
    assign cdb_valid = |units_cdb_valid;
+   assign clear = pred_miss;
+   assign o_mfu_ready = mmu_ready;
 
    always_comb begin
       for (int i = 0; i < N_UNITS; i++) begin
          if (units_cdb_valid[i]) begin
             cdb <= units_cdb[i];
             cdb_exception <= units_cdb_exception[i];
+            break;
          end
       end
    end
@@ -181,9 +183,13 @@ module core
 
    always_comb alu_reservation_data : begin
       case (opcode)
-        I_SETI1, I_SETI2, I_ADDI, I_SUBI : begin
+        I_SETI1, I_SETI2 : begin
            alu_data <= {rob_id, opcode, operands[2], imm};
            alu_filled <= {operands_filled[2], 1'b1};
+        end
+        I_ADDI, I_SUBI : begin
+           alu_data <= {rob_id, opcode, operands[1], imm};
+           alu_filled <= {operands_filled[1], 1'b1};
         end
         I_SAVE : begin
            alu_data <= {rob_id, opcode, (DATA_W+RSV_ID_W)'($unsigned(o_current_pc)), imm};
@@ -197,23 +203,22 @@ module core
    end
 
    always_comb bru_reservation_data : begin
+      bru_condition <= o_current_taken;
       case (opcode)
         I_BLT, I_BEQ : begin
-           bru_data <= {rob_id, opcode, operands[1], operands[0],
-                        (DATA_W+RSV_ID_W)'(o_current_taken),
+           bru_data <= {rob_id, opcode, operands[2], operands[1],
                         (DATA_W+RSV_ID_W)'($unsigned(o_true_pc))};
-           bru_filled <= {operands_filled[1], operands_filled[0], 1'b1, 1'b1};
+           bru_filled <= {operands_filled[2], operands_filled[1], 1'b1};
         end
         I_JMP : begin
            bru_data <= {rob_id, opcode, imm, imm,
-                        (DATA_W+RSV_ID_W)'(o_current_taken),
                         (DATA_W+RSV_ID_W)'($unsigned(o_true_pc))};
-           bru_filled <= {1'b1, 1'b1, 1'b1, 1'b1};
+           bru_filled <= {1'b1, 1'b1, 1'b1};
         end
         I_JMPR : begin
-           bru_data <= {rob_id, opcode, operands[1], imm,
-                        (DATA_W+RSV_ID_W)'(o_current_taken)};
-           bru_filled <= {operands_filled[1], 1'b1, 1'b1, 1'b1};
+           bru_data <= {rob_id, opcode, imm, imm,
+                        operands[2]};
+           bru_filled <= {1'b1, 1'b1, operands_filled[2]};
         end
       endcase
    end
@@ -351,11 +356,6 @@ module core
       end
    end
 
-   assign alu_cdb_ready = units_cdb_ready[0];
-   assign mfu_cdb_ready = units_cdb_ready[1];
-   assign mmu_cdb_ready = units_cdb_ready[2];
-   assign bru_cdb_ready = units_cdb_ready[3];
-
    assign reg_wr_rsv_addr = commit_data.station_id;
    assign reg_wr_addr = commit_data.dst_reg;
    assign reg_wr_data = commit_data.content;
@@ -364,12 +364,30 @@ module core
       store_commit_id <= commit_data.station_id;
    end
 
+   always_comb begin
+      sch_address_valid <= 'b0;
+      sch_address <= 'b0;
+      if (pred_miss) begin
+         sch_address_valid <= 'b1;
+         if (commit_data.opcode == I_JMP ||
+             commit_data.opcode == I_JMPR) begin
+            sch_address <= commit_data.content;
+         end else if (true_condition) begin
+            sch_address <= committed_program_counter + (CRAM_ADDR_W)'(commit_data.content);
+         end else begin
+            sch_address <= committed_program_counter + 'h4;
+         end
+      end
+   end
+
    always_ff @(posedge clk) begin
       if (nrst) begin
          if (commit_valid && commit_ready) begin
             if (commit_data.opcode == I_JMP ||
                 commit_data.opcode == I_JMPR) begin
                committed_program_counter <= commit_data.content;
+            end else if (pred_miss) begin
+               committed_program_counter <= sch_address;
             end else begin
                committed_program_counter <= committed_program_counter + 'h4;
             end
@@ -411,7 +429,8 @@ module core
       .*,
       .ce(~halt),
       .address(sch_address),
-      .address_valid(sch_address_valid)
+      .address_valid(sch_address_valid),
+      .clear(pred_miss)
       );
 
    alu alu_inst
@@ -425,10 +444,11 @@ module core
       .cdb(cdb),
       .cdb_valid(cdb_valid),
 
-      .o_cdb(units_cdb[0]),
-      .o_valid(units_cdb_valid[0]),
-      .o_ready(alu_cdb_ready),
+      .o_cdb(units_cdb[2]),
+      .o_valid(units_cdb_valid[2]),
+      .o_ready(units_cdb_ready[2]),
 
+      .clear(pred_miss),
       .nrst(nrst)
       );
 
@@ -438,6 +458,7 @@ module core
       .i_valid(bru_reserve),
       .i_data(bru_data),
       .i_filled(bru_filled),
+      .i_condition(bru_condition),
       .i_ready(bru_ready),
 
       .cdb(cdb),
@@ -446,14 +467,18 @@ module core
       .take_flag(take_flag),
       .commit_valid(commit_valid),
       .commit_data(commit_data),
+      .commit_id(commit_data.station_id),
+      .commit_opcode(commit_data.opcode),
 
       .o_cdb(units_cdb[3]),
       .o_valid(units_cdb_valid[3]),
-      .o_ready(bru_cdb_ready),
+      .o_ready(units_cdb_ready[3]),
 
       .pred_miss(pred_miss),
-      .pred_miss_dst(pred_miss_dst),
+      .pred_condition(pred_condition),
+      .true_condition(true_condition),
 
+      .clear(pred_miss),
       .nrst(nrst)
       );
 
@@ -474,7 +499,7 @@ module core
 
       .o_cdb(units_cdb[1]),
       .o_cdb_valid(units_cdb_valid[1]),
-      .o_cdb_ready(mfu_cdb_ready),
+      .o_cdb_ready(units_cdb_ready[1]),
 
       .o_valid(o_mfu_valid),
       .o_rsv_id(o_mfu_rsv_id),
@@ -483,6 +508,7 @@ module core
       .o_data(o_mfu_data),
       .o_ready(o_mfu_ready),
 
+      .clear(pred_miss),
       .nrst(nrst)
       );
 
@@ -521,8 +547,6 @@ module core
       .rob_data(rob_rdData),
       .rob_data_filled(rob_rdData_filled),
 
-      .rob_clear(pred_miss),
-
       .o_valid(commit_valid),
       .o_commit_data(commit_data),
       .o_ready(commit_ready),
@@ -531,6 +555,7 @@ module core
       .cdb_valid(cdb_valid),
       .cdb(cdb),
 
+      .clear(pred_miss),
       .nrst(nrst)
       );
 
@@ -539,7 +564,8 @@ module core
    assign mmu_data = o_mfu_data;
    assign mmu_addr = o_mfu_addr;
    assign mmu_opcode = o_mfu_opcode;
-   assign units_cdb[2] = mmu_cdb;
-   assign o_mfu_ready = mmu_ready;
+   assign units_cdb[0] = mmu_cdb;
+   assign units_cdb_valid[0] = mmu_cdb_valid;
+   assign mmu_cdb_ready = units_cdb_ready[0];
 
 endmodule
