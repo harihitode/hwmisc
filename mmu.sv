@@ -176,7 +176,7 @@ module memory_management_unit
 
    // serial interface {
    always_comb begin
-      if (valid && opcode == I_OUTPUT) begin
+      if (state == mmu_idle && valid && opcode == I_OUTPUT) begin
          io_wvalid <= 'b1;
          io_wlast <= 'b1;
          io_wdata <= data;
