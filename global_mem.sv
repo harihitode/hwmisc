@@ -104,8 +104,8 @@ module global_mem
    logic [C_AWADDR_FIFO_CAPACITY_W+((BURST_W > BVALID_DELAY_W) ? 0 : BVALID_DELAY_W-BURST_W)-1:0]                       awid_fifo_rdAddr = '0;
    logic [C_AWADDR_FIFO_CAPACITY_W+((BURST_W > BVALID_DELAY_W) ? 0 : BVALID_DELAY_W-BURST_W)-1:0]                       awid_fifo_wrAddr = '0;
 
-   typedef enum                                                                                                                            {get_address, write_data} st_write_type;
-   st_write_type st_write  = get_address;
+   typedef enum                                                                                                         {get_address, write_data} st_write_type;
+   st_write_type st_write = get_address;
    // write pipe for delaying bvalid
    logic [2**BVALID_DELAY_W-1:0][DATA_W*GMEM_N_BANK-1:0]                                                                        wdata_vec = '0;
    logic [2**BVALID_DELAY_W-1:0][GMEM_N_BANK*DATA_W/8-1:0]                                                                      wstrb_vec = '0;
