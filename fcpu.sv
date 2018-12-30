@@ -131,6 +131,8 @@ module fcpu
    wire                mmu_cdb_valid;
    wire                mmu_cdb_ready;
 
+   wire                clear;
+
    assign nrst = sys_rst_n;
 
    core core_inst
