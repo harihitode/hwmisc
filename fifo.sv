@@ -37,7 +37,7 @@ module fifo
       if (nrst) begin
          if (instruction & FIFO_R) read_pos <= read_pos + NEXT_POS;
          if (instruction & FIFO_W) write_pos <= write_pos + NEXT_POS;
-         if (instruction & FIFO_W) mem[write_pos] <= a_data + NEXT_POS;
+         if (instruction & FIFO_W) mem[write_pos] <= a_data;
       end else begin
          read_pos <= 'd0;
          write_pos <= 'd0;
