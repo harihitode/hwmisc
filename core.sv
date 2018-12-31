@@ -114,6 +114,7 @@ module core
 
    //
    logic                                            store_commit_valid = 'b0;
+   logic                                            store_commit_invalidate = 'b0;
    logic [RSV_ID_W-1:0]                             store_commit_id = 'b0;
    logic                                            mfu_reserve = 'b0;
    wire                                             mfu_ready;
@@ -360,6 +361,7 @@ module core
 
    always_comb begin
       store_commit_id <= commit_data.station_id;
+      store_commit_invalidate <= commit_data.invalidate;
    end
 
    always_comb begin
@@ -446,7 +448,6 @@ module core
       .o_valid(units_cdb_valid[2]),
       .o_ready(units_cdb_ready[2]),
 
-      .clear(pred_miss),
       .nrst(nrst)
       );
 
@@ -476,7 +477,6 @@ module core
       .pred_condition(pred_condition),
       .true_condition(true_condition),
 
-      .clear(pred_miss),
       .nrst(nrst)
       );
 
@@ -490,6 +490,7 @@ module core
       .i_ready(mfu_ready),
 
       .store_commit_valid(store_commit_valid),
+      .store_commit_invalidate(store_commit_invalidate),
       .store_commit_id(store_commit_id),
 
       .cdb(cdb),
@@ -506,7 +507,6 @@ module core
       .o_data(o_mfu_data),
       .o_ready(o_mfu_ready),
 
-      .clear(pred_miss),
       .nrst(nrst)
       );
 
@@ -528,6 +528,7 @@ module core
       .rdData(reg_rdData),
       .rdData_filled(reg_filled),
 
+      .clear(pred_miss),
       .nrst(nrst)
       );
 

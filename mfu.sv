@@ -13,6 +13,7 @@ module memory_functional_unit
     output logic                                                    i_ready,
 
     input logic                                                     store_commit_valid,
+    input logic                                                     store_commit_invalidate,
     input logic [RSV_ID_W-1:0]                                      store_commit_id,
 
     input logic [CDB_W-1:0]                                         cdb,
@@ -29,7 +30,6 @@ module memory_functional_unit
     output logic [DATA_W-1:0]                                       o_data,
     input logic                                                     o_ready,
 
-    input logic                                                     clear,
     input logic                                                     nrst
     );
 
@@ -38,6 +38,7 @@ module memory_functional_unit
       logic [RSV_ID_W-1:0]     rob_id;
       logic [INSTR_W-1:0]      opcode;
       logic                    valid;
+      logic                    invalidate;
       logic                    committed;
       logic                    data_ready;
       logic                    addr_ready;
@@ -158,7 +159,7 @@ module memory_functional_unit
 
    always_comb begin
       store_buffer_pop <= 'b0;
-      if (o_valid && o_ready) begin
+      if ((o_valid && o_ready) || head_buffer.invalidate) begin
          case (o_opcode)
            I_STORE, I_STOREB, I_STORER,
 //           I_STOREF, I_STOREBF, I_STORERF,
@@ -194,7 +195,7 @@ module memory_functional_unit
    end // always_comb
 
    always_ff @(posedge clk) begin
-      if (nrst & ~clear) begin
+      if (nrst) begin
          head <= head_n;
          head_buffer <= store_buffer[head_n];
          tail <= tail_n;
@@ -218,6 +219,7 @@ module memory_functional_unit
                store_buffer_n[i].data        <= i_data[2*(DATA_W+RSV_ID_W)+:DATA_W];
                store_buffer_n[i].data_rob_id <= i_data[2*(DATA_W+RSV_ID_W)+DATA_W+:RSV_ID_W];
                store_buffer_n[i].data_ready  <= i_filled[2];
+               store_buffer_n[i].invalidate  <= 'b0;
                store_buffer_n[i].override    <= 'b0;
             end
          end
@@ -240,6 +242,7 @@ module memory_functional_unit
              store_commit_valid &&
              store_commit_id == store_buffer[i].rob_id) begin
             store_buffer_n[i].committed <= 'b1;
+            store_buffer_n[i].invalidate <= store_commit_invalidate;
          end
          if (store_buffer[i].valid &&
              store_buffer_pop && i == head) begin
@@ -261,7 +264,7 @@ module memory_functional_unit
       .b_data(address),
       .b_valid(address_valid),
       .b_ready(address_ready),
-      .nrst(nrst & ~clear)
+      .nrst(nrst)
       );
 
    reservation_station
@@ -283,7 +286,7 @@ module memory_functional_unit
 
       .cdb_valid(cdb_valid),
       .cdb(cdb),
-      .nrst(nrst & ~clear)
+      .nrst(nrst)
       );
 
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin

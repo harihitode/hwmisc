@@ -19,14 +19,12 @@ module alu
     output logic                                                    o_valid,
     input logic                                                     o_ready,
 
-    input logic                                                     clear,
     input logic                                                     nrst
     );
 
    wire [INSTR_W-1:0] opcode;
    wire [DATA_W-1:0]  a1;
    wire [DATA_W-1:0]  a2;
-   wire [DATA_W-1:0]  a2_negative;
    logic [DATA_W-1:0] pre_ret = '0;
    logic [DATA_W-1:0] a_shift = '0;
 
@@ -91,7 +89,7 @@ module alu
       .b_valid(calc_valid),
       .b_ready(calc_ready),
 
-      .nrst(nrst & ~clear)
+      .nrst(nrst)
       );
 
    reservation_station
@@ -112,7 +110,7 @@ module alu
 
       .cdb_valid(cdb_valid),
       .cdb(cdb),
-      .nrst(nrst & ~clear)
+      .nrst(nrst)
       );
 
 endmodule

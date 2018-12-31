@@ -30,7 +30,6 @@ module branch_unit
     output logic [CDB_W-1:0]                                        o_cdb,
     output logic                                                    o_valid,
     input logic                                                     o_ready,
-    input logic                                                     clear,
     // reset
     input logic                                                     nrst
     );
@@ -77,7 +76,7 @@ module branch_unit
    end
 
    always_ff @(posedge clk) begin
-      if (nrst & ~clear) begin
+      if (nrst & ~pred_miss) begin
          pred_conditions[N_OPERANDS*(RSV_ID_W+DATA_W)+INSTR_W+RSV_ID_W] <= i_condition;
       end else begin
          pred_conditions <= 'b0;
@@ -85,7 +84,7 @@ module branch_unit
    end
 
    always_comb begin
-      if (commit_valid) begin
+      if (commit_valid && ~commit_data.invalidate) begin
          if (commit_opcode == I_JMP) begin
             pred_miss <= 'b0;
          end else if (commit_opcode == I_JMPR) begin
@@ -115,7 +114,7 @@ module branch_unit
       .b_valid(calc_valid),
       .b_ready(calc_ready),
 
-      .nrst(nrst & ~clear)
+      .nrst(nrst)
       );
 
    reservation_station
@@ -132,11 +131,11 @@ module branch_unit
 
       .o_valid(calc_valid_n),
       .o_data(calc_n),
-      .o_ready(calc_ready),
+      .o_ready(calc_ready_n),
 
       .cdb_valid(cdb_valid),
       .cdb(cdb),
-      .nrst(nrst & ~clear)
+      .nrst(nrst)
       );
 
 endmodule
