@@ -41,22 +41,21 @@ module alu
    assign opcode = calc[2*DATA_W+:INSTR_W];
    assign a1 = calc[1*DATA_W+:DATA_W];
    assign a2 = calc[0*DATA_W+:DATA_W];
-   assign a2_negative = ~a2 + 'h1;
    assign o_valid = calc_valid;
    assign calc_ready = o_ready;
 
    always_comb begin
       case (opcode)
         I_SL, I_SRL :
-          pre_ret <= a1 << a2;
+          pre_ret <= $unsigned(a1) << $unsigned(a2);
         I_SRA :
-          pre_ret <= $signed(a1) >> a2;
+          pre_ret <= $signed(a1) >> $unsigned(a2);
         I_SRL :
-          pre_ret <= $unsigned(a1) >> a2;
+          pre_ret <= $unsigned(a1) >> $unsigned(a2);
         I_ADD, I_ADDI :
-          pre_ret <= a1 + a2;
+          pre_ret <= a1 + $unsigned(a2);
         I_SUB, I_SUBI :
-          pre_ret <= a1 + a2_negative;
+          pre_ret <= a1 - $unsigned(a2);
         I_SAVE :
           pre_ret <= a1 + 'h8;
         I_AND :
