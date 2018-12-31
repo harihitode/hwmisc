@@ -311,9 +311,9 @@ module memory_functional_unit
 
       if (p_address[2*DATA_W+:INSTR_W] == I_STOREB ||
           p_address[2*DATA_W+:INSTR_W] == I_LOADB) begin
-         addr = p_address[0+:DATA_W] - p_address[DATA_W+:DATA_W];
+         addr = p_address[DATA_W+:DATA_W] - p_address[0+:DATA_W];
       end else begin
-         addr = p_address[0+:DATA_W] + p_address[DATA_W+:DATA_W];
+         addr = p_address[DATA_W+:DATA_W] + p_address[0+:DATA_W];
       end
       p_computed_address <= {
                              p_address[2*DATA_W+:INSTR_W+RSV_ID_W],
