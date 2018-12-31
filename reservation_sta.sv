@@ -81,7 +81,7 @@ module reservation_station
                station_n[i].data_rsv_id[j] <= 'b0;
                station_n[i].data[j] <= 'b0;
             end else if (cdb_valid) begin
-               if (station[i].valid && ~station[i].filled && cdb_valid &&
+               if (station[i].valid && ~station[i].filled[j] && cdb_valid &&
                    station[i].data_rsv_id[j] == cdb[DATA_W+:RSV_ID_W]) begin
                   station_n[i].filled[j] <= 'b1;
                   station_n[i].data_rsv_id[j] <= cdb[DATA_W+:RSV_ID_W];
