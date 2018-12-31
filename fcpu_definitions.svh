@@ -36,6 +36,7 @@ package fcpu_pkg;
       logic [N_STATIONS_W-1:0] station_id;
       logic                    valid;
       logic                    ready;
+      logic                    invalidate;
       logic [REG_ADDR_W-1:0]   dst_reg;
       logic [INSTR_W-1:0]      opcode;
       logic [DATA_W-1:0]       content;
