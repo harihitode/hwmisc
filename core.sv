@@ -40,7 +40,6 @@ module core
    input logic                 mmu_cdb_valid,
    output logic                mmu_cdb_ready,
    // }
-   output                      clear,
    input                       nrst
    );
 
@@ -132,7 +131,6 @@ module core
    logic                                            sch_address_valid = 'b0;
 
    assign cdb_valid = |units_cdb_valid;
-   assign clear = pred_miss;
    assign o_mfu_ready = mmu_ready;
 
    always_comb begin

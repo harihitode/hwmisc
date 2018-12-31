@@ -106,7 +106,6 @@ module memory_management_unit
    output logic                     o_cdb_valid,
    input logic                      o_cdb_ready,
 
-   input logic                      clear,
    input logic                      nrst
    );
 
@@ -273,7 +272,7 @@ module memory_management_unit
    end // always_comb
 
    always_ff @(posedge clk) begin
-      if (nrst & ~clear) begin
+      if (nrst) begin
          state <= state_n;
          if (state == mmu_idle && // idle
              valid && ready) begin
