@@ -57,16 +57,16 @@ module global_mem
 
    logic [GMEM_ADDR_W-1:0] wr_addr = '0;
    wire [MEM_PHY_ADDR_W-1:0] wr_addr_offset;
-   int                                  written_count = 0;
-   logic [MAX_NDRANGE_SIZE-1:0]         written_addrs = '0;
+   int                       written_count = 0;
+   logic [MAX_NDRANGE_SIZE-1:0] written_addrs = '0;
    // }
 
    // other signals {
-   int                                  delay = 0;
+   int                          delay = 0;
    // }
    // alias signals {
-   logic                     wvalid = '0;
-   logic                     wready = '0;
+   logic                        wvalid = '0;
+   logic                        wready = '0;
    logic [DATA_W*GMEM_N_BANK-1:0] wdata = '0;
    logic [DATA_W*GMEM_N_BANK-1:0] rdata = '0;
    logic [GMEM_N_BANK*DATA_W/8-1:0] wstrb = '0;
@@ -143,6 +143,7 @@ module global_mem
    // mem module {
    always_ff @(posedge clk) begin
       if (wvalid_vec[0] && wready) begin
+         $display("WRITE: %x <- %x", wr_addr_offset_vec[0], wdata_vec[0]);
          for (int i = 0; i < GMEM_DATA_W/8; i++) begin
             if (wstrb_vec[0][i]) begin
                gmem[$unsigned(wr_addr_offset_vec[0])][(i*8)+:8] <= wdata_vec[0][(i*8)+:8];
@@ -170,6 +171,7 @@ module global_mem
            reader_idle : begin
               if (arvalid && !arready && $unsigned(arid == 0)) begin
                  arready <= 'b1;
+                 $display("ARADDR: %x[rdAddr %x]", araddr, $unsigned(araddr) - ADDR_OFFSET);
                  rdAddr = $unsigned(araddr) - ADDR_OFFSET;
                  rlen = $unsigned(m0_arlen);
 
@@ -202,11 +204,14 @@ module global_mem
                  end
               end
            end
-         endcase
+         endcase // case (st_reader)
 
          if (st_reader == send_data)  begin
             rvalid <= 'b1;
             rdata <= gmem[$unsigned(rdAddr[MEM_PHY_ADDR_W+2+GMEM_N_BANK_W-1:2+GMEM_N_BANK_W])];
+            $display("READ: %x <- %x",
+                     gmem[$unsigned(rdAddr[MEM_PHY_ADDR_W+2+GMEM_N_BANK_W-1:2+GMEM_N_BANK_W])],
+                     $unsigned(rdAddr[MEM_PHY_ADDR_W+2+GMEM_N_BANK_W-1:2+GMEM_N_BANK_W]));
             rid <= (ID_WIDTH)'($unsigned(0));
             if (rlen == 0) begin
                if (rlen == 0) begin
@@ -223,6 +228,7 @@ module global_mem
    // write control {
 
    assign wr_addr_offset = wr_addr[MEM_PHY_ADDR_W+2+GMEM_N_BANK_W-1:2+GMEM_N_BANK_W];
+//   assign wr_addr_offset = wr_addr[MEM_PHY_ADDR_W+2+GMEM_N_BANK_W-1:0];
    assign awready = ~awaddr_fifo_full;
    assign awaddr_fifo_push = awvalid & awready;
 
@@ -240,10 +246,15 @@ module global_mem
          awid_fifo_wrAddr <= '0;
       end else begin
          wready <= '1;
-         wdata_vec <= {wdata, wdata_vec[$high(wdata_vec):1]};
-         wlast_vec[$high(wlast_vec)-1:0] <= wlast_vec[$high(wlast_vec):1];
 
+         wdata_vec <= {wdata, wdata_vec[$high(wdata_vec):1]};
+         wvalid_vec <= {wvalid, wvalid_vec[$high(wvalid_vec):1]};
+         wstrb_vec <= {wstrb, wstrb_vec[$high(wstrb_vec):1]};
+         wr_addr_offset_vec <= {wr_addr_offset, wr_addr_offset,
+                                wr_addr_offset_vec[$high(wr_addr_offset_vec)-1:1]};
+         wlast_vec[$high(wlast_vec)-1:0] <= wlast_vec[$high(wlast_vec):1];
          wlast_vec[$high(wlast_vec)] <= 'b0;
+
          if (wlast) begin
             while (1) begin
                bid_wait_cycles = $floor($itor($urandom()) * $itor(2**BVALID_DELAY_W) / $itor(32'hffffffff));
@@ -257,10 +268,6 @@ module global_mem
                end
             end // while (1)
          end // if (wlast)
-
-         wvalid_vec <= {wvalid, wvalid_vec[$high(wvalid_vec):1]};
-         wstrb_vec <= {wstrb, wstrb_vec[$high(wstrb_vec):1]};
-         wr_addr_offset_vec <= {wr_addr_offset, wr_addr_offset_vec[$high(wr_addr_offset_vec):1]};
 
          if (wlast_vec[0]) begin
             bvalid <= 'b1;
@@ -278,6 +285,8 @@ module global_mem
                  awaddr_fifo_pop <= 'b1;
                  pop_awaddr = 'b1;
                  wr_addr <= awaddr_fifo[$unsigned(awaddr_fifo_rdAddr)] - ADDR_OFFSET;
+                 $display("AWADDR1: %x[wr_addr %x] (%x)", awaddr_fifo[$unsigned(awaddr_fifo_rdAddr)],
+                          awaddr_fifo[$unsigned(awaddr_fifo_rdAddr)] - ADDR_OFFSET, wdata);
 
                  awaddr_fifo_rdAddr <= awaddr_fifo_rdAddr + 1;
                  st_write <= write_data;
@@ -290,6 +299,8 @@ module global_mem
                     if (awaddr_fifo_nempty) begin
                        awaddr_fifo_pop <= 'b1;
                        pop_awaddr = 'b1;
+                       $display("AWADDR2: %x[wr_addr %x] (%x)", awaddr_fifo[$unsigned(awaddr_fifo_rdAddr)],
+                                awaddr_fifo[$unsigned(awaddr_fifo_rdAddr)] - ADDR_OFFSET, wdata);
                        wr_addr <= awaddr_fifo[$unsigned(awaddr_fifo_rdAddr)] - ADDR_OFFSET;
                        awaddr_fifo_rdAddr <= awaddr_fifo_rdAddr + 1;
                        st_write <= write_data;
