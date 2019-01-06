@@ -92,6 +92,7 @@ module reorder_buffer
          new_station[i].dst_reg    <= i_dst_reg;
          new_station[i].opcode     <= i_opcode;
          new_station[i].content    <= 'b0;
+         new_station[i].invalidate <= 'b0;
          // }
 
          // update rob stations {
@@ -99,6 +100,7 @@ module reorder_buffer
             update_station[i].invalidate <= 'b1;
          end else begin
             update_station[i].valid <= station[i].valid;
+            update_station[i].invalidate <= station[i].invalidate;
             update_station[i].station_id <= station[i].station_id;
             update_station[i].dst_reg <= station[i].dst_reg;
             update_station[i].opcode <= station[i].opcode;
