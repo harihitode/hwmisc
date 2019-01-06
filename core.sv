@@ -158,12 +158,12 @@ module core
 
    generate begin for (genvar i = 0; i < 3; i++) begin
       always_comb begin
-         if (cdb_valid && reg_rdData[i][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
-            operands[i] <= cdb;
-            operands_filled[i] <= 'b1;
-         end else if (reg_filled[i]) begin
+         if (reg_filled[i]) begin
             operands[i] <= reg_rdData[i];
             operands_filled[i] <= reg_filled[i];
+         end else if (cdb_valid && reg_rdData[i][DATA_W+:RSV_ID_W] == cdb[DATA_W+:RSV_ID_W]) begin
+            operands[i] <= cdb;
+            operands_filled[i] <= 'b1;
          end else begin
             operands[i] <= rob_rdData[i];
             operands_filled[i] <= rob_rdData_filled[i];
@@ -382,7 +382,7 @@ module core
 
    always_ff @(posedge clk) begin
       if (nrst) begin
-         if (commit_valid && commit_ready) begin
+         if (commit_valid && commit_ready && ~commit_data.invalidate) begin
             if (commit_data.opcode == I_JMP ||
                 commit_data.opcode == I_JMPR) begin
                committed_program_counter <= commit_data.content;
