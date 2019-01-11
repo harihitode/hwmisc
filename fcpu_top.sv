@@ -69,12 +69,12 @@ module fcpu_top
    wire             s_cram_arready;
 
    // cram data ports
-   wire             s_cram_rready;
    wire [3:0]       s_cram_rid;
    wire [31:0]      s_cram_rdata;
    wire [1:0]       s_cram_rresp;
    wire             s_cram_rlast;
    wire             s_cram_rvalid;
+   wire             s_cram_rready;
 
    // Slave Interface Write Data Ports
    wire [3:0]       s_axi_awid;

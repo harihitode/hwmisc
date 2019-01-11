@@ -101,6 +101,27 @@ module memory_management_unit
    input logic                      io_rlast,
    input logic                      io_rvalid,
    // }
+   // CRAM {
+   // cram addr ports
+   output logic [3:0]               cram_arid = 'b0,
+   output logic [31:0]              cram_araddr = 'b0,
+   output logic [7:0]               cram_arlen = 'b0,
+   output logic [2:0]               cram_arsize = 'b0,
+   output logic [1:0]               cram_arburst = 'b0,
+   output logic [0:0]               cram_arlock = 'b0,
+   output logic [3:0]               cram_arcache = 'b0,
+   output logic [2:0]               cram_arprot = 'b0,
+   output logic [3:0]               cram_arqos = 'b0,
+   output logic                     cram_arvalid = 'b0,
+   input logic                      cram_arready,
+   // cram data ports
+   output logic                     cram_rready = 'b0,
+   input logic [3:0]                cram_rid,
+   input logic [31:0]               cram_rdata,
+   input logic [1:0]                cram_rresp,
+   input logic                      cram_rlast,
+   input logic                      cram_rvalid,
+   // }
 
    output logic [CDB_W-1:0]         o_cdb,
    output logic                     o_cdb_valid,
