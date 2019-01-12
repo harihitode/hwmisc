@@ -103,19 +103,19 @@ module memory_management_unit
    // }
    // CRAM {
    // cram addr ports
-   output logic [3:0]               cram_arid = 'b0,
-   output logic [31:0]              cram_araddr = 'b0,
-   output logic [7:0]               cram_arlen = 'b0,
-   output logic [2:0]               cram_arsize = 'b0,
-   output logic [1:0]               cram_arburst = 'b0,
-   output logic [0:0]               cram_arlock = 'b0,
-   output logic [3:0]               cram_arcache = 'b0,
-   output logic [2:0]               cram_arprot = 'b0,
-   output logic [3:0]               cram_arqos = 'b0,
-   output logic                     cram_arvalid = 'b0,
+   output logic [3:0]               cram_arid,
+   output logic [31:0]              cram_araddr,
+   output logic [7:0]               cram_arlen,
+   output logic [2:0]               cram_arsize,
+   output logic [1:0]               cram_arburst,
+   output logic [0:0]               cram_arlock,
+   output logic [3:0]               cram_arcache,
+   output logic [2:0]               cram_arprot,
+   output logic [3:0]               cram_arqos,
+   output logic                     cram_arvalid,
    input logic                      cram_arready,
    // cram data ports
-   output logic                     cram_rready = 'b0,
+   output logic                     cram_rready,
    input logic [3:0]                cram_rid,
    input logic [31:0]               cram_rdata,
    input logic [1:0]                cram_rresp,
@@ -135,7 +135,7 @@ module memory_management_unit
    logic [DATA_W-1:0]        data_d = 'b0;
    logic [INSTR_W-1:0]       opcode_d = 'b0;
 
-   typedef enum              {mmu_idle, mmu_wr_addr, mmu_wr_data, mmu_rd_addr, mmu_rd_data} st_mmu_t;
+   typedef enum              {mmu_idle, mmu_wr_addr, mmu_wr_data, mmu_rd_addr, mmu_rd_cram_data, mmu_rd_dram_data} st_mmu_t;
    st_mmu_t state;
    st_mmu_t state_n = mmu_idle;
 
@@ -157,7 +157,6 @@ module memory_management_unit
    assign s_axi_arburst = 'b1;
    assign s_axi_arlen = ($size(s_axi_arlen))'($unsigned((2**BURST_W)-1));
    assign s_axi_arsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
-   // }
 
    assign s_axi_araddr = 28'(address_d);
    assign s_axi_awaddr = 28'(address_d);
@@ -165,6 +164,7 @@ module memory_management_unit
    assign s_axi_wdata = 128'(data_d);
    assign s_axi_wstrb = 16'hffff;
    assign s_axi_bready = 'b1;
+   // }
 
    // static signals for IO {
    assign io_awid = 4'b0;
@@ -184,7 +184,6 @@ module memory_management_unit
    assign io_arburst = 'b1;
    assign io_arlen = 'h0;
    assign io_arsize = 'h4;
-   // }
 
    assign io_araddr = 28'(address_d);
    assign io_arvalid = 'b0;
@@ -193,6 +192,20 @@ module memory_management_unit
 
    assign io_wstrb = 16'hffff;
    assign io_bready = 'b1;
+   // }
+
+   // static signals for CRAM {
+   assign cram_arid = 4'b0;
+   assign cram_arprot = 'b0;
+   assign cram_arlock = 'b0;
+   assign cram_arcache = 'h0;
+   assign cram_arqos = 'b0;
+   assign cram_arburst = 'b1;
+   assign cram_arlen = ($size(cram_arlen))'($unsigned((2**BURST_W)-1));
+   assign cram_arsize = 3'h2; // 2*2 = 4bytes(32bits)
+
+   assign cram_araddr = 28'(address_d);
+   // }
 
    // serial interface {
    always_comb begin
@@ -222,8 +235,13 @@ module memory_management_unit
 
    always_comb begin
       s_axi_arvalid <= 'b0;
+      cram_arvalid <= 'b0;
       if (state == mmu_rd_addr) begin
-         s_axi_arvalid <= 'b1;
+         if (address_d < 2**CRAM_ADDR_W) begin
+            cram_arvalid <= 'b1;
+         end else begin
+            s_axi_arvalid <= 'b1;
+         end
       end
    end
 
@@ -254,10 +272,20 @@ module memory_management_unit
             state_n <= mmu_idle;
          end
       end else if (state == mmu_rd_addr) begin
-         if (s_axi_arvalid && s_axi_arready) begin
-            state_n <= mmu_rd_data;
+         if (address_d < 2**CRAM_ADDR_W) begin
+            if (cram_arvalid && cram_arready) begin
+               state_n <= mmu_rd_cram_data;
+            end
+         end else begin
+            if (s_axi_arvalid && s_axi_arready) begin
+               state_n <= mmu_rd_dram_data;
+            end
          end
-      end else if (state == mmu_rd_data) begin
+      end else if (state == mmu_rd_cram_data) begin
+         if (cram_rvalid && cram_rready) begin
+            state_n <= mmu_idle;
+         end
+      end else if (state == mmu_rd_dram_data) begin
          if (s_axi_rvalid && s_axi_rready) begin
             state_n <= mmu_idle;
          end
@@ -285,7 +313,11 @@ module memory_management_unit
          o_cdb_valid <= io_rvalid;
          o_cdb <= {rsv_id, 32'(io_rdata)};
          io_rready <= o_cdb_ready;
-      end else if (state == mmu_rd_data) begin
+      end else if (state == mmu_rd_cram_data) begin
+         o_cdb_valid <= cram_rvalid;
+         o_cdb <= {rsv_id_d, cram_rdata[31:0]};
+         cram_rready <= o_cdb_ready;
+      end else if (state == mmu_rd_dram_data) begin
          o_cdb_valid <= s_axi_rvalid;
          o_cdb <= {rsv_id_d, s_axi_rdata[31:0]};
          s_axi_rready <= o_cdb_ready;
