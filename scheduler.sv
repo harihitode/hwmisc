@@ -49,6 +49,8 @@ module scheduler
    );
 
    localparam int                 NEXT_PC_WIDTH = 4;
+   // tekitou
+   localparam int                 ADDR_BUFFER_SIZE = 4;
 
    assign s_cram_arid = 'b0;
    assign s_cram_arlen = 'h0;
@@ -63,6 +65,11 @@ module scheduler
    assign s_cram_arvalid = nrst & ~clear;
 
    typedef struct packed {
+      logic [CRAM_ADDR_W-1:0] addr;
+      logic                   valid;
+   } address_fifo_t;
+
+   typedef struct packed {
       logic [CRAM_ADDR_W-1:0] pc;
       logic                   valid;
       logic                   take_flag;
@@ -75,6 +82,37 @@ module scheduler
 
    lut_t [1:0] lut = 'b0;
    lut_t [1:0] lut_n;
+
+   address_fifo_t [ADDR_BUFFER_SIZE-1:0] addr_buffer = 'b0;
+   int                        head = 0, tail = 0;
+   int                        head_n = 0, tail_n = 0;
+
+   logic                      addr_buffer_push = 'b0;
+   logic                      addr_buffer_pop = 'b0;
+
+   always_comb head_countup : begin
+      if (addr_buffer_pop) begin
+         if (head == ADDR_BUFFER_SIZE-1) begin
+            head_n <= 0;
+         end else begin
+            head_n <= head + 'b1;
+         end
+      end else begin
+         head_n <= head;
+      end
+   end // always_comb
+
+   always_comb tail_countup : begin
+      if (addr_buffer_push) begin
+         if (tail == ADDR_BUFFER_SIZE-1) begin
+            tail_n <= 0;
+         end else begin
+            tail_n <= tail + 'b1;
+         end
+      end else begin
+         tail_n <= tail;
+      end
+   end // always_comb
 
    always_comb begin
       if (address_valid) begin
@@ -125,12 +163,56 @@ module scheduler
    assign o_current_taken = lut[0].take_flag;
    assign o_true_pc       = lut[0].cram_data[14:0];
 
+   // fifo: read addresses to CRAM
+   // arvalid & arready -> push
+   // format [ADDRESS: VALID]
+   // pred_miss -> INVALID
+   // rvalid & rready -> pop
+   always_comb begin
+      if (s_cram_arvalid & s_cram_arready) begin
+         addr_buffer_push <= 'b1;
+      end else begin
+         addr_buffer_push <= 'b0;
+      end
+   end
+
+   always_comb begin
+      if (s_cram_rvalid & s_cram_rready) begin
+         addr_buffer_pop <= 'b1;
+      end else begin
+         addr_buffer_pop <= 'b0;
+      end
+   end
+
+   generate begin for (genvar i = 0; i < ADDR_BUFFER_SIZE; i++) begin
+      always_ff @(posedge clk) begin
+         if (nrst) begin
+            if (address_valid) begin
+               addr_buffer[i].valid <= 'b0;
+            end
+            if (addr_buffer_push && i == tail) begin
+               addr_buffer[i].valid <= 'b1;
+               addr_buffer[i].addr  <= s_cram_araddr;
+            end
+            if (addr_buffer[i].valid &&
+                addr_buffer_pop && i == head) begin
+               addr_buffer[i] <= 'b0;
+            end
+         end else begin
+            addr_buffer[i] <= 'b0;
+         end
+      end
+   end end
+   endgenerate
+
    always_comb begin
       if (!nrst | clear) begin
          s_cram_araddr <= 'b0;
       end else if (!ce) begin
          s_cram_araddr <= s_cram_araddr_d;
-      end else if (s_cram_rvalid && s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_JMP) begin
+      end else if (addr_buffer[$unsigned(head)].valid &&
+                   s_cram_rvalid &&
+                   s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_JMP) begin
          s_cram_araddr <= s_cram_rdata[21:0];
       end else begin
          s_cram_araddr <= s_cram_araddr_i;
