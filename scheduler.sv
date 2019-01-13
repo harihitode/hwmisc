@@ -44,7 +44,6 @@ module scheduler
    output logic                   o_current_taken,
    output logic [CRAM_ADDR_W-1:0] o_true_pc,
 
-   input logic                    clear,
    input logic                    nrst
    );
 
@@ -62,32 +61,27 @@ module scheduler
    assign s_cram_arqos = 'b0;
 
    assign s_cram_rready = 'b1;
-   assign s_cram_arvalid = nrst & ~clear;
+   assign s_cram_arvalid = nrst;
 
    typedef struct packed {
       logic [CRAM_ADDR_W-1:0] addr;
       logic                   valid;
-   } address_fifo_t;
-
-   typedef struct packed {
-      logic [CRAM_ADDR_W-1:0] pc;
-      logic                   valid;
       logic                   take_flag;
-      logic [DATA_W-1:0]      cram_data;
-   } lut_t;
+      logic [DATA_W-1:0]      data;
+      logic                   data_valid;
+   } address_buffer_t;
 
    logic [31:0]               s_cram_araddr_n;
    logic [31:0]               s_cram_araddr_i = 'b0;
    logic [31:0]               s_cram_araddr_d = 'b0;
 
-   lut_t [1:0] lut = 'b0;
-   lut_t [1:0] lut_n;
+   address_buffer_t [ADDR_BUFFER_SIZE-1:0] addr_buffer = 'b0;
 
-   address_fifo_t [ADDR_BUFFER_SIZE-1:0] addr_buffer = 'b0;
-   int                        head = 0, tail = 0;
-   int                        head_n = 0, tail_n = 0;
+   int                        head = 0, addr_tail = 0, data_tail = 0;
+   int                        head_n = 0, addr_tail_n = 0, data_tail_n = 0;
 
-   logic                      addr_buffer_push = 'b0;
+   logic                      addr_buffer_addr_push = 'b0;
+   logic                      addr_buffer_data_push = 'b0;
    logic                      addr_buffer_pop = 'b0;
 
    always_comb head_countup : begin
@@ -102,33 +96,35 @@ module scheduler
       end
    end // always_comb
 
-   always_comb tail_countup : begin
-      if (addr_buffer_push) begin
-         if (tail == ADDR_BUFFER_SIZE-1) begin
-            tail_n <= 0;
+   always_comb addr_tail_countup : begin
+      if (addr_buffer_addr_push) begin
+         if (addr_tail == ADDR_BUFFER_SIZE-1) begin
+            addr_tail_n <= 0;
          end else begin
-            tail_n <= tail + 'b1;
+            addr_tail_n <= addr_tail + 'b1;
          end
       end else begin
-         tail_n <= tail;
+         addr_tail_n <= addr_tail;
+      end
+   end // always_comb
+
+   always_comb data_tail_countup : begin
+      if (addr_buffer_data_push) begin
+         if (data_tail == ADDR_BUFFER_SIZE-1) begin
+            data_tail_n <= 0;
+         end else begin
+            data_tail_n <= data_tail + 'b1;
+         end
+      end else begin
+         data_tail_n <= data_tail;
       end
    end // always_comb
 
    always_comb begin
-      if (address_valid) begin
-         lut_n <= '0;
-      end else if (!ce) begin
-         lut_n <= lut;
+      if (ce && addr_buffer[head].data_valid) begin
+         addr_buffer_pop <= 'b1;
       end else begin
-         if (s_cram_arvalid) begin
-            lut_n[$high(lut_n)] <= {CRAM_ADDR_W'(s_cram_araddr_d),
-                                    s_cram_rvalid,
-                                    take_flag,
-                                    s_cram_rdata};
-         end else begin
-            lut_n[$high(lut_n)] <= 'b0;
-         end
-         lut_n[$high(lut_n)-1:0] <= lut[$high(lut_n):1];
+         addr_buffer_pop <= 'b0;
       end
    end
 
@@ -157,11 +153,13 @@ module scheduler
       end
    end // always_comb
 
-   assign o_current_pc    = lut[0].pc;
-   assign o_current_valid = lut[0].valid;
-   assign o_current_inst  = lut[0].cram_data;
-   assign o_current_taken = lut[0].take_flag;
-   assign o_true_pc       = lut[0].cram_data[14:0];
+   always_comb begin
+      o_current_pc    <= addr_buffer[$unsigned(head)].addr;
+      o_current_valid <= addr_buffer[$unsigned(head)].valid & addr_buffer[$unsigned(head)].data_valid;
+      o_current_inst  <= addr_buffer[$unsigned(head)].data;
+      o_current_taken <= addr_buffer[$unsigned(head)].take_flag;
+      o_true_pc       <= addr_buffer[$unsigned(head)].data[14:0];
+   end
 
    // fifo: read addresses to CRAM
    // arvalid & arready -> push
@@ -170,17 +168,17 @@ module scheduler
    // rvalid & rready -> pop
    always_comb begin
       if (s_cram_arvalid & s_cram_arready) begin
-         addr_buffer_push <= 'b1;
+         addr_buffer_addr_push <= 'b1;
       end else begin
-         addr_buffer_push <= 'b0;
+         addr_buffer_addr_push <= 'b0;
       end
    end
 
    always_comb begin
       if (s_cram_rvalid & s_cram_rready) begin
-         addr_buffer_pop <= 'b1;
+         addr_buffer_data_push <= 'b1;
       end else begin
-         addr_buffer_pop <= 'b0;
+         addr_buffer_data_push <= 'b0;
       end
    end
 
@@ -190,12 +188,16 @@ module scheduler
             if (address_valid) begin
                addr_buffer[i].valid <= 'b0;
             end
-            if (addr_buffer_push && i == tail) begin
-               addr_buffer[i].valid <= 'b1;
+            if (addr_buffer_addr_push && i == addr_tail) begin
+               addr_buffer[i].valid <= ~address_valid;
                addr_buffer[i].addr  <= s_cram_araddr;
+               addr_buffer[i].take_flag <= take_flag;
             end
-            if (addr_buffer[i].valid &&
-                addr_buffer_pop && i == head) begin
+            if (addr_buffer_data_push && i == data_tail) begin
+               addr_buffer[i].data <= s_cram_rdata;
+               addr_buffer[i].data_valid <= 'b1;
+            end
+            if (addr_buffer_pop && i == head) begin
                addr_buffer[i] <= 'b0;
             end
          end else begin
@@ -206,7 +208,7 @@ module scheduler
    endgenerate
 
    always_comb begin
-      if (!nrst | clear) begin
+      if (!nrst) begin
          s_cram_araddr <= 'b0;
       end else if (!ce) begin
          s_cram_araddr <= s_cram_araddr_d;
@@ -221,13 +223,17 @@ module scheduler
 
    always_ff @(posedge clk) begin
       if (nrst) begin
-         lut <= lut_n;
          s_cram_araddr_i <= s_cram_araddr_n;
          s_cram_araddr_d <= s_cram_araddr;
+         head <= head_n;
+         addr_tail <= addr_tail_n;
+         data_tail <= data_tail_n;
       end else begin
-         lut <= 'b0;
          s_cram_araddr_i <= 'b0;
          s_cram_araddr_d <= 'b0;
+         head <= 0;
+         addr_tail <= 0;
+         data_tail <= 0;
       end
    end
 

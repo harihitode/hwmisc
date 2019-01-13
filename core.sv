@@ -429,8 +429,7 @@ module core
       .*,
       .ce(~halt),
       .address(sch_address),
-      .address_valid(sch_address_valid),
-      .clear(pred_miss)
+      .address_valid(sch_address_valid)
       );
 
    alu alu_inst
