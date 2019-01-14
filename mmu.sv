@@ -103,7 +103,7 @@ module memory_management_unit
    // }
    // CRAM {
    // cram addr ports
-   output logic [3:0]               cram_arid,
+   output logic [ID_WIDTH-1:0]      cram_arid,
    output logic [31:0]              cram_araddr,
    output logic [7:0]               cram_arlen,
    output logic [2:0]               cram_arsize,
@@ -116,7 +116,7 @@ module memory_management_unit
    input logic                      cram_arready,
    // cram data ports
    output logic                     cram_rready,
-   input logic [3:0]                cram_rid,
+   input logic [ID_WIDTH-1:0]       cram_rid,
    input logic [31:0]               cram_rdata,
    input logic [1:0]                cram_rresp,
    input logic                      cram_rlast,
@@ -135,7 +135,7 @@ module memory_management_unit
    logic [DATA_W-1:0]        data_d = 'b0;
    logic [INSTR_W-1:0]       opcode_d = 'b0;
 
-   typedef enum              {mmu_idle, mmu_wr_addr, mmu_wr_data, mmu_rd_addr, mmu_rd_cram_data, mmu_rd_dram_data} st_mmu_t;
+   typedef enum              {mmu_idle, mmu_wr_addr, mmu_wr_data, mmu_wr_wait, mmu_rd_addr, mmu_rd_cram_data, mmu_rd_dram_data} st_mmu_t;
    st_mmu_t state;
    st_mmu_t state_n = mmu_idle;
 
@@ -163,7 +163,6 @@ module memory_management_unit
 
    assign s_axi_wdata = 128'(data_d);
    assign s_axi_wstrb = 16'hffff;
-   assign s_axi_bready = 'b1;
    // }
 
    // static signals for IO {
@@ -225,11 +224,14 @@ module memory_management_unit
       s_axi_awvalid <= 'b0;
       s_axi_wvalid <= 'b0;
       s_axi_wlast <= 'b0;
+      s_axi_bready <= 'b0;
       if (state == mmu_wr_addr) begin
          s_axi_awvalid <= 'b1;
       end else if (state == mmu_wr_data) begin
          s_axi_wvalid <= 'b1;
          s_axi_wlast <= 'b1;
+      end else if (state == mmu_wr_wait) begin
+         s_axi_bready <= 'b1;
       end
    end
 
@@ -269,6 +271,10 @@ module memory_management_unit
          end
       end else if (state == mmu_wr_data) begin
          if (s_axi_wvalid && s_axi_wready) begin
+            state_n <= mmu_wr_wait;
+         end
+      end else if (state == mmu_wr_wait) begin
+         if (s_axi_bvalid && s_axi_bready) begin
             state_n <= mmu_idle;
          end
       end else if (state == mmu_rd_addr) begin
