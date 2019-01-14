@@ -57,8 +57,6 @@ module global_mem
 
    logic [GMEM_ADDR_W-1:0] wr_addr = '0;
    wire [MEM_PHY_ADDR_W-1:0] wr_addr_offset;
-   int                       written_count = 0;
-   logic [MAX_NDRANGE_SIZE-1:0] written_addrs = '0;
    // }
 
    // other signals {
@@ -107,12 +105,12 @@ module global_mem
    typedef enum                                                                                                         {get_address, write_data} st_write_type;
    st_write_type st_write = get_address;
    // write pipe for delaying bvalid
-   logic [2**BVALID_DELAY_W-1:0][DATA_W*GMEM_N_BANK-1:0]                                                                        wdata_vec = '0;
-   logic [2**BVALID_DELAY_W-1:0][GMEM_N_BANK*DATA_W/8-1:0]                                                                      wstrb_vec = '0;
+   logic [2**BVALID_DELAY_W-1:0][DATA_W*GMEM_N_BANK-1:0]                                                                wdata_vec = '0;
+   logic [2**BVALID_DELAY_W-1:0][GMEM_N_BANK*DATA_W/8-1:0]                                                              wstrb_vec = '0;
 
-   logic [2**BVALID_DELAY_W-1:0]                                                                                                wlast_vec = '0;
-   logic [2**BVALID_DELAY_W-1:0]                                                                                                wvalid_vec = '0;
-   logic [2**BVALID_DELAY_W-1:0][MEM_PHY_ADDR_W-1:0]                                                                            wr_addr_offset_vec = '0;
+   logic [2**BVALID_DELAY_W-1:0]                                                                                        wlast_vec = '0;
+   logic [2**BVALID_DELAY_W-1:0]                                                                                        wvalid_vec = '0;
+   logic [2**BVALID_DELAY_W-1:0][MEM_PHY_ADDR_W-1:0]                                                                    wr_addr_offset_vec = '0;
    // }
 
    // alias
@@ -228,7 +226,6 @@ module global_mem
    // write control {
 
    assign wr_addr_offset = wr_addr[MEM_PHY_ADDR_W+2+GMEM_N_BANK_W-1:2+GMEM_N_BANK_W];
-//   assign wr_addr_offset = wr_addr[MEM_PHY_ADDR_W+2+GMEM_N_BANK_W-1:0];
    assign awready = ~awaddr_fifo_full;
    assign awaddr_fifo_push = awvalid & awready;
 
