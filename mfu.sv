@@ -79,7 +79,9 @@ module memory_functional_unit
       // priority is LOAD > STORE
       if (address_valid &&
           (address[3*DATA_W+:INSTR_W] == I_LOAD ||
-           address[3*DATA_W+:INSTR_W] == I_LOADB)) begin
+           address[3*DATA_W+:INSTR_W] == I_LOADB ||
+           address[3*DATA_W+:INSTR_W] == I_LOADR ||
+           address[3*DATA_W+:INSTR_W] == I_INPUT)) begin
          o_rsv_id <= address[3*DATA_W+INSTR_W+:RSV_ID_W];
          o_opcode <= address[3*DATA_W+:INSTR_W];
          o_data <= 'b0;
@@ -132,7 +134,9 @@ module memory_functional_unit
          address_ready <= 'b1;
       end else if (address_valid &&
                    (address[3*DATA_W+:INSTR_W] == I_LOAD ||
-                    address[3*DATA_W+:INSTR_W] == I_LOADB)) begin
+                    address[3*DATA_W+:INSTR_W] == I_LOADB ||
+                    address[3*DATA_W+:INSTR_W] == I_LOADR ||
+                    address[3*DATA_W+:INSTR_W] == I_INPUT)) begin
          address_ready <= (load_bypassing & o_ready) |
                           (load_forwarding & o_cdb_ready);
       end
