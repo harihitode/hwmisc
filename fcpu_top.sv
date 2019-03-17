@@ -10,7 +10,7 @@ module fcpu_top
    // LED
    output logic [3:0] led,
    // Switch
-   input              sw,
+   input logic [3:0]  sw,
    // btn
    input logic [3:0]  btn,
    // DDR
@@ -135,7 +135,7 @@ module fcpu_top
    end
 
    always_comb begin
-      led[0] <= sw;
+      led[0] <= sw[0];
       led[1] <= sys_rst_n;
       led[2] <= init_calib_complete;
       led[3] <= 1'b1;
