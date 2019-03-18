@@ -60,8 +60,8 @@ module scheduler
    assign s_cram_arprot = 'b0;
    assign s_cram_arqos = 'b0;
 
-   assign s_cram_rready = 'b1;
-   assign s_cram_arvalid = nrst;
+   assign s_cram_rready = ce;
+   assign s_cram_arvalid = ce;
 
    typedef struct packed {
       logic [CRAM_ADDR_W-1:0] addr;
