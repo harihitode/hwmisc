@@ -31,13 +31,19 @@ module fcpu_top
    output [1:0]       ddr3_dm,
    output [0:0]       ddr3_odt,
    // clk & reset
+   // output             init_calib_complete,
+   // output             tg_compare_error,
    input              CLK12MHZ,
+   // input              clk_ref_i,
    input              sys_clk_i,
    input              ck_rst
    );
 
+   // assign tg_compare_error = 'b0;
+
    wire             clk_ref_i;
    wire             locked;
+   // logic              locked = 'b1;
    wire             init_calib_complete;
    wire             uart_txd_in_d;
    wire             uart_rxd_out_i;
@@ -153,9 +159,11 @@ module fcpu_top
       .locked(locked)
       );
 
+   assign s_axi_wstrb[15:4] = '1;
    fcpu fcpu_inst
      (.*,
       .clk(ui_clk),
+      .s_axi_wstrb(s_axi_wstrb[3:0]),
       // {
       // write address
       .io_awid(),
@@ -238,7 +246,7 @@ module fcpu_top
       .s_axi_rlast(s_cram_rlast),
       .s_axi_rvalid(s_cram_rvalid),
       .s_axi_rready(s_cram_rready),
-      .s_aresetn('b1),
+      .s_aresetn(sys_rst_n),
       .s_axi_awid('b0),
       .s_axi_awaddr('b0),
       .s_axi_awlen('b0),
@@ -263,7 +271,7 @@ module fcpu_top
      (
       .*,
       .ui_clk(ui_clk),
-      .ui_clk_sync_rst(),
+      .ui_clk_sync_rst(), // output
       .mmcm_locked(mmcm_locked),
       .aresetn('b1),
       .app_sr_req('b0),
