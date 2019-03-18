@@ -91,24 +91,25 @@ module memory_functional_unit
       o_address <= 'b0;
       o_valid <= 'b0;
       o_opcode <= 'b0;
-      // priority is LOAD < STORE
-      if (head_buffer.valid & head_buffer.data_ready &
+      // priority is STORE > LOAD
+      if (address_valid &&
+          load_bypassing &&
+          (address.opcode == I_LOAD ||
+           address.opcode == I_LOADB ||
+           address.opcode == I_LOADR ||
+           address.opcode == I_INPUT)) begin
+         o_rsv_id <= address.rob_id;
+         o_opcode <= address.opcode;
+         o_data <= 'b0;
+         o_address <= address.computed_address;
+         o_valid <= 'b1;
+      end else if (head_buffer.valid & head_buffer.data_ready &
           head_buffer.addr_ready & head_buffer.committed) begin
          o_rsv_id <= head_buffer.rob_id;
          o_opcode <= head_buffer.opcode;
          o_data <= head_buffer.data;
          o_address <= head_buffer.address;
          o_valid <= 'b1;
-      end else if (address_valid &&
-                   (address.opcode == I_LOAD ||
-                    address.opcode == I_LOADB ||
-                    address.opcode == I_LOADR ||
-                    address.opcode == I_INPUT)) begin
-         o_rsv_id <= address.rob_id;
-         o_opcode <= address.opcode;
-         o_data <= 'b0;
-         o_address <= address.computed_address;
-         o_valid <= load_bypassing;
       end
    end // always_comb
 
@@ -312,6 +313,7 @@ module memory_functional_unit
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
       always_comb begin
          if (store_buffer[i].valid &&
+             address[2*DATA_W+:DATA_W] != '1 &&
              address[2*DATA_W+:DATA_W] == store_buffer[i].address) begin
             load_bypassing_vec[i] <= 'b0;
          end else begin
