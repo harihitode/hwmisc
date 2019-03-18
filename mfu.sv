@@ -56,16 +56,31 @@ module memory_functional_unit
    wire                        i_ready_storebuffer;
    wire                        address_valid;
    wire                        p_address_valid;
-   wire [RSV_ID_W+INSTR_W+2*(DATA_W)-1:0] p_address;
-   logic [RSV_ID_W+INSTR_W+3*(DATA_W)-1:0] p_computed_address = 'b0;
-   wire [RSV_ID_W+INSTR_W+3*(DATA_W)-1:0]  address;
-   logic                                   address_ready = 'b0;
-   wire                                    p_address_ready;
-   logic                                   address_store = 'b0;
-   logic                                   load_bypassing = 'b0;
-   logic [STORE_BUFFER_SIZE-1:0]           load_bypassing_vec = 'b0;
-   logic                                   load_forwarding = 'b0;
-   logic [DATA_W-1:0]                      computed_address = 'b0;
+   typedef struct              packed {
+      logic [RSV_ID_W-1:0]     rob_id;
+      logic [INSTR_W-1:0]      opcode;
+      logic [DATA_W-1:0]       address_left;
+      logic [DATA_W-1:0]       address_right;
+   } pre_address_t;
+
+   typedef struct              packed {
+      logic [RSV_ID_W-1:0]     rob_id;
+      logic [INSTR_W-1:0]      opcode;
+      logic [DATA_W-1:0]       computed_address;
+      logic [DATA_W-1:0]       address_left;
+      logic [DATA_W-1:0]       address_right;
+   } post_address_t;
+
+   pre_address_t p_address;
+   post_address_t p_computed_address = 'b0;
+   post_address_t address;
+   logic                       address_ready = 'b0;
+   wire                        p_address_ready;
+   logic                       address_store = 'b0;
+   logic                       load_bypassing = 'b0;
+   logic [STORE_BUFFER_SIZE-1:0] load_bypassing_vec = 'b0;
+   logic                         load_forwarding = 'b0;
+   logic [DATA_W-1:0]            computed_address = 'b0;
 
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer = 'b0;
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer_n = 'b0;
@@ -85,14 +100,14 @@ module memory_functional_unit
          o_address <= head_buffer.address;
          o_valid <= 'b1;
       end else if (address_valid &&
-                   (address[3*DATA_W+:INSTR_W] == I_LOAD ||
-                    address[3*DATA_W+:INSTR_W] == I_LOADB ||
-                    address[3*DATA_W+:INSTR_W] == I_LOADR ||
-                    address[3*DATA_W+:INSTR_W] == I_INPUT)) begin
-         o_rsv_id <= address[3*DATA_W+INSTR_W+:RSV_ID_W];
-         o_opcode <= address[3*DATA_W+:INSTR_W];
+                   (address.opcode == I_LOAD ||
+                    address.opcode == I_LOADB ||
+                    address.opcode == I_LOADR ||
+                    address.opcode == I_INPUT)) begin
+         o_rsv_id <= address.rob_id;
+         o_opcode <= address.opcode;
          o_data <= 'b0;
-         o_address <= address[2*DATA_W+:DATA_W];
+         o_address <= address.computed_address;
          o_valid <= load_bypassing;
       end
    end // always_comb
@@ -103,12 +118,12 @@ module memory_functional_unit
       o_cdb_valid <= 'b0;
       if (address_valid && !address_store) begin
          for (int i = 0; i < STORE_BUFFER_SIZE; i++) begin
-            if (address[2*DATA_W+:DATA_W] == store_buffer[i].address &&
-                address[2*DATA_W+:DATA_W] != '1 &&
+            if (address.computed_address == store_buffer[i].address &&
+                address.computed_address != '1 &&
                 store_buffer[i].data_ready &&
                 !store_buffer[i].override) begin
                load_forwarding <= 'b1;
-               o_cdb <= {address[3*DATA_W+INSTR_W+:RSV_ID_W], store_buffer[i].data};
+               o_cdb <= {address.rob_id, store_buffer[i].data};
                o_cdb_valid <= 'b1;
                break;
             end
@@ -117,7 +132,7 @@ module memory_functional_unit
    end // always_comb
 
    always_comb begin
-      case (address[3*DATA_W+:INSTR_W])
+      case (address.opcode)
         I_STORE, I_STOREB, I_STORER,
 //        I_STOREF, I_STOREBF, I_STORERF,
         I_OUTPUT : begin
@@ -134,10 +149,10 @@ module memory_functional_unit
       if (address_store) begin
          address_ready <= 'b1;
       end else if (address_valid &&
-                   (address[3*DATA_W+:INSTR_W] == I_LOAD ||
-                    address[3*DATA_W+:INSTR_W] == I_LOADB ||
-                    address[3*DATA_W+:INSTR_W] == I_LOADR ||
-                    address[3*DATA_W+:INSTR_W] == I_INPUT)) begin
+                   (address.opcode == I_LOAD ||
+                    address.opcode == I_LOADB ||
+                    address.opcode == I_LOADR ||
+                    address.opcode == I_INPUT)) begin
          address_ready <= (load_bypassing & o_ready) |
                           (load_forwarding & o_cdb_ready);
       end
