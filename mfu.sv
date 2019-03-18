@@ -76,24 +76,24 @@ module memory_functional_unit
       o_address <= 'b0;
       o_valid <= 'b0;
       o_opcode <= 'b0;
-      // priority is LOAD > STORE
-      if (address_valid &&
-          (address[3*DATA_W+:INSTR_W] == I_LOAD ||
-           address[3*DATA_W+:INSTR_W] == I_LOADB ||
-           address[3*DATA_W+:INSTR_W] == I_LOADR ||
-           address[3*DATA_W+:INSTR_W] == I_INPUT)) begin
-         o_rsv_id <= address[3*DATA_W+INSTR_W+:RSV_ID_W];
-         o_opcode <= address[3*DATA_W+:INSTR_W];
-         o_data <= 'b0;
-         o_address <= address[2*DATA_W+:DATA_W];
-         o_valid <= load_bypassing;
-      end else if (head_buffer.valid & head_buffer.data_ready &
-                   head_buffer.addr_ready & head_buffer.committed) begin
+      // priority is LOAD < STORE
+      if (head_buffer.valid & head_buffer.data_ready &
+          head_buffer.addr_ready & head_buffer.committed) begin
          o_rsv_id <= head_buffer.rob_id;
          o_opcode <= head_buffer.opcode;
          o_data <= head_buffer.data;
          o_address <= head_buffer.address;
          o_valid <= 'b1;
+      end else if (address_valid &&
+                   (address[3*DATA_W+:INSTR_W] == I_LOAD ||
+                    address[3*DATA_W+:INSTR_W] == I_LOADB ||
+                    address[3*DATA_W+:INSTR_W] == I_LOADR ||
+                    address[3*DATA_W+:INSTR_W] == I_INPUT)) begin
+         o_rsv_id <= address[3*DATA_W+INSTR_W+:RSV_ID_W];
+         o_opcode <= address[3*DATA_W+:INSTR_W];
+         o_data <= 'b0;
+         o_address <= address[2*DATA_W+:DATA_W];
+         o_valid <= load_bypassing;
       end
    end // always_comb
 
@@ -104,14 +104,15 @@ module memory_functional_unit
       if (address_valid && !address_store) begin
          for (int i = 0; i < STORE_BUFFER_SIZE; i++) begin
             if (address[2*DATA_W+:DATA_W] == store_buffer[i].address &&
+                address[2*DATA_W+:DATA_W] != '1 &&
                 store_buffer[i].data_ready &&
                 !store_buffer[i].override) begin
                load_forwarding <= 'b1;
                o_cdb <= {address[3*DATA_W+INSTR_W+:RSV_ID_W], store_buffer[i].data};
-               o_cdb_valid <= o_ready;
+               o_cdb_valid <= 'b1;
+               break;
             end
          end
-
       end
    end // always_comb
 
