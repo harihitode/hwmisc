@@ -312,9 +312,8 @@ module memory_functional_unit
 
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
       always_comb begin
-         if ((address[2*DATA_W+:DATA_W] != '1) ||
-             (store_buffer[i].valid &&
-              address[2*DATA_W+:DATA_W] == store_buffer[i].address)) begin
+         if (store_buffer[i].valid &&
+             address[2*DATA_W+:DATA_W] == store_buffer[i].address) begin
             load_bypassing_vec[i] <= 'b0;
          end else begin
             load_bypassing_vec[i] <= 'b1;
