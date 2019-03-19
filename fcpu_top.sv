@@ -146,10 +146,12 @@ module fcpu_top
    IBUF tx_buf (.I(uart_txd_in), .O(uart_txd_in_d));
    OBUF rx_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
 
-   assign s_axi_wstrb[15:4] = '1;
+   assign s_axi_wstrb[15:4] = '0;
+   assign s_axi_wdata[127:32] = '0;
    fcpu fcpu_inst
      (.*,
       .clk(ui_clk),
+      .s_axi_wdata(s_axi_wdata[31:0]),
       .s_axi_wstrb(s_axi_wstrb[3:0]),
       // {
       // write address
