@@ -31,109 +31,103 @@ module fcpu_top
    output [1:0]       ddr3_dm,
    output [0:0]       ddr3_odt,
    // clk & reset
-   // output             init_calib_complete,
-   // output             tg_compare_error,
-   input              CLK12MHZ,
-   // input              clk_ref_i,
+   output             init_calib_complete,
+   output             tg_compare_error,
+   input              clk_ref_i,
    input              sys_clk_i,
-   input              ck_rst
+   output             ui_clk,
+   input              sys_rst
    );
 
-   // assign tg_compare_error = 'b0;
+   assign tg_compare_error = 'b0;
 
-   wire             clk_ref_i;
-   wire             locked;
-   // logic              locked = 'b1;
-   wire             init_calib_complete;
-   wire             uart_txd_in_d;
-   wire             uart_rxd_out_i;
-   wire             sys_rst_n;
-   wire             ui_clk;
+   wire               clk_ref_i;
+   wire               uart_txd_in_d;
+   wire               uart_rxd_out_i;
+   wire               sys_rst_n;
+   wire               ui_clk;
 
-   wire [7:0]       io_wdata;
-   wire             io_wvalid;
-   wire             io_wready;
+   wire [7:0]         io_wdata;
+   wire               io_wvalid;
+   wire               io_wready;
 
-   wire [7:0]       io_rdata;
-   wire             io_rvalid;
-   wire             io_rready;
+   wire [7:0]         io_rdata;
+   wire               io_rvalid;
+   wire               io_rready;
 
-   logic [7:0]      io_wdata_i = 'b0;
-   logic            io_wvalid_i = 'b0;
+   logic [7:0]        io_wdata_i = 'b0;
+   logic              io_wvalid_i = 'b0;
 
    // cram addr ports
-   wire [3:0]       s_cram_arid;
-   wire [31:0]      s_cram_araddr;
-   wire [7:0]       s_cram_arlen;
-   wire [2:0]       s_cram_arsize;
-   wire [1:0]       s_cram_arburst;
-   wire [0:0]       s_cram_arlock;
-   wire [3:0]       s_cram_arcache;
-   wire [2:0]       s_cram_arprot;
-   wire [3:0]       s_cram_arqos;
-   wire             s_cram_arvalid;
-   wire             s_cram_arready;
+   wire [3:0]         s_cram_arid;
+   wire [31:0]        s_cram_araddr;
+   wire [7:0]         s_cram_arlen;
+   wire [2:0]         s_cram_arsize;
+   wire [1:0]         s_cram_arburst;
+   wire [0:0]         s_cram_arlock;
+   wire [3:0]         s_cram_arcache;
+   wire [2:0]         s_cram_arprot;
+   wire [3:0]         s_cram_arqos;
+   wire               s_cram_arvalid;
+   wire               s_cram_arready;
 
    // cram data ports
-   wire [3:0]       s_cram_rid;
-   wire [31:0]      s_cram_rdata;
-   wire [1:0]       s_cram_rresp;
-   wire             s_cram_rlast;
-   wire             s_cram_rvalid;
-   wire             s_cram_rready;
+   wire [3:0]         s_cram_rid;
+   wire [31:0]        s_cram_rdata;
+   wire [1:0]         s_cram_rresp;
+   wire               s_cram_rlast;
+   wire               s_cram_rvalid;
+   wire               s_cram_rready;
 
    // Slave Interface Write Data Ports
-   wire [3:0]       s_axi_awid;
-   wire [27:0]      s_axi_awaddr;
-   wire [7:0]       s_axi_awlen;
-   wire [2:0]       s_axi_awsize;
-   wire [1:0]       s_axi_awburst;
-   wire [0:0]       s_axi_awlock;
-   wire [3:0]       s_axi_awcache;
-   wire [2:0]       s_axi_awprot;
-   wire [3:0]       s_axi_awqos;
-   wire             s_axi_awvalid;
-   wire             s_axi_awready;
+   wire [3:0]         s_axi_awid;
+   wire [27:0]        s_axi_awaddr;
+   wire [7:0]         s_axi_awlen;
+   wire [2:0]         s_axi_awsize;
+   wire [1:0]         s_axi_awburst;
+   wire [0:0]         s_axi_awlock;
+   wire [3:0]         s_axi_awcache;
+   wire [2:0]         s_axi_awprot;
+   wire [3:0]         s_axi_awqos;
+   wire               s_axi_awvalid;
+   wire               s_axi_awready;
    // Slave Interface Write Data Ports
-   wire [127:0]     s_axi_wdata;
-   wire [15:0]      s_axi_wstrb;
-   wire             s_axi_wlast;
-   wire             s_axi_wvalid;
-   wire             s_axi_wready;
+   wire [127:0]       s_axi_wdata;
+   wire [15:0]        s_axi_wstrb;
+   wire               s_axi_wlast;
+   wire               s_axi_wvalid;
+   wire               s_axi_wready;
    // Slave Interface Write Response Ports
-   wire             s_axi_bready;
-   wire [3:0]       s_axi_bid;
-   wire [1:0]       s_axi_bresp;
-   wire             s_axi_bvalid;
+   wire               s_axi_bready;
+   wire [3:0]         s_axi_bid;
+   wire [1:0]         s_axi_bresp;
+   wire               s_axi_bvalid;
    // Slave Interface Read Address Ports
-   wire [3:0]       s_axi_arid;
-   wire [27:0]      s_axi_araddr;
-   wire [7:0]       s_axi_arlen;
-   wire [2:0]       s_axi_arsize;
-   wire [1:0]       s_axi_arburst;
-   wire [0:0]       s_axi_arlock;
-   wire [3:0]       s_axi_arcache;
-   wire [2:0]       s_axi_arprot;
-   wire [3:0]       s_axi_arqos;
-   wire             s_axi_arvalid;
-   wire             s_axi_arready;
+   wire [3:0]         s_axi_arid;
+   wire [27:0]        s_axi_araddr;
+   wire [7:0]         s_axi_arlen;
+   wire [2:0]         s_axi_arsize;
+   wire [1:0]         s_axi_arburst;
+   wire [0:0]         s_axi_arlock;
+   wire [3:0]         s_axi_arcache;
+   wire [2:0]         s_axi_arprot;
+   wire [3:0]         s_axi_arqos;
+   wire               s_axi_arvalid;
+   wire               s_axi_arready;
    // Slave Interface Read Data Ports
-   wire             s_axi_rready;
-   wire [3:0]       s_axi_rid;
-   wire [127:0]     s_axi_rdata;
-   wire [1:0]       s_axi_rresp;
-   wire             s_axi_rlast;
-   wire             s_axi_rvalid;
+   wire               s_axi_rready;
+   wire [3:0]         s_axi_rid;
+   wire [127:0]       s_axi_rdata;
+   wire [1:0]         s_axi_rresp;
+   wire               s_axi_rlast;
+   wire               s_axi_rvalid;
 
-   wire             mmcm_locked;
+   wire               mmcm_locked;
 
    always_ff @(posedge ui_clk) begin
       if (btn[0]) begin
          io_wvalid_i <= 1'b1;
          io_wdata_i <= 8'h60;
-      end else if (s_cram_araddr == 32'h0000_0018) begin
-         io_wvalid_i <= 1'b1;
-         io_wdata_i <= 8'h70;
       end else begin
          io_wvalid_i <= io_wvalid;
          io_wdata_i <= io_wdata;
@@ -147,17 +141,10 @@ module fcpu_top
       led[3] <= 1'b1;
    end
 
-   assign sys_rst_n = locked & mmcm_locked & ck_rst;
+   assign sys_rst_n = mmcm_locked & sys_rst & init_calib_complete;
 
    IBUF tx_buf (.I(uart_txd_in), .O(uart_txd_in_d));
    OBUF rx_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
-
-   clk_wiz_0 clk_wiz_inst
-     (
-      .clk_in1(CLK12MHZ),
-      .clk_out1(clk_ref_i),
-      .locked(locked)
-      );
 
    assign s_axi_wstrb[15:4] = '1;
    fcpu fcpu_inst
@@ -282,7 +269,7 @@ module fcpu_top
       .app_zq_ack(),
       .device_temp(),
       .device_temp_i(12'b0),
-      .sys_rst(ck_rst) // negative
+      .sys_rst(sys_rst) // negative
       );
 
 endmodule
