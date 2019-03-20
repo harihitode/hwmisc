@@ -5,6 +5,8 @@ import fcpu_pkg::*;
 module memory_management_unit
   (
    input logic                      clk,
+   // btn
+   input logic [3:0]                btn,
    // core to mmu {
    input logic [RSV_ID_W-1:0]       rsv_id,
    input logic                      valid,
@@ -130,12 +132,16 @@ module memory_management_unit
    input logic                      nrst
    );
 
-   logic [RSV_ID_W-1:0]      rsv_id_d = 'b0;
-   logic [DATA_W-1:0]        address_d = 'b0;
-   logic [DATA_W-1:0]        data_d = 'b0;
-   logic [INSTR_W-1:0]       opcode_d = 'b0;
+   typedef struct                   packed {
+      logic [RSV_ID_W-1:0]          rsv_id;
+      logic [INSTR_W-1:0]           opcode;
+      logic [DATA_W-1:0]            address;
+      logic [DATA_W-1:0]            data;
+   } request_t;
 
-   typedef enum              {mmu_idle, mmu_wr_addr, mmu_wr_data, mmu_wr_wait, mmu_rd_addr, mmu_rd_cram_data, mmu_rd_dram_data} st_mmu_t;
+   request_t request = 'b0;
+
+   typedef enum                     {mmu_idle, mmu_wr_addr, mmu_wr_data, mmu_wr_wait, mmu_rd_addr, mmu_rd_cram_data, mmu_rd_dram_data} st_mmu_t;
    st_mmu_t state;
    st_mmu_t state_n = mmu_idle;
 
@@ -145,9 +151,11 @@ module memory_management_unit
    assign s_axi_awlock = 'b0;
    assign s_axi_awcache = 'h0;
    assign s_axi_awqos = 'b0;
-   assign s_axi_awburst = 'b1;
-   assign s_axi_awlen = ($size(s_axi_awlen))'($unsigned((2**BURST_W)-1));  // once per burst
-   assign s_axi_awsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
+   assign s_axi_awburst = 2'b1;
+   assign s_axi_awlen = 'b0;
+   assign s_axi_awsize = 3'h7;
+   // assign s_axi_awlen = ($size(s_axi_awlen))'($unsigned((2**BURST_W)-1));  // once per burst
+   // assign s_axi_awsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
 
    assign s_axi_arid = 4'b0;
    assign s_axi_arprot = 'b0;
@@ -155,14 +163,20 @@ module memory_management_unit
    assign s_axi_arcache = 'h0;
    assign s_axi_arqos = 'b0;
    assign s_axi_arburst = 'b1;
-   assign s_axi_arlen = ($size(s_axi_arlen))'($unsigned((2**BURST_W)-1));
-   assign s_axi_arsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
+   assign s_axi_arlen = 'b0;
+   assign s_axi_arsize = 3'h7;
+   // assign s_axi_arlen = ($size(s_axi_arlen))'($unsigned((2**BURST_W)-1));
+   // assign s_axi_arsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
 
-   assign s_axi_araddr = 28'(address_d);
-   assign s_axi_awaddr = 28'(address_d);
+   always_comb begin
+      s_axi_awaddr <= request.address[27:0];
+      s_axi_araddr <= request.address[27:0];
+   end
 
-   assign s_axi_wdata = 128'(data_d);
-   assign s_axi_wstrb = 16'hffff;
+   always_comb begin
+      s_axi_wdata <= 128'(request.data);
+   end
+   assign s_axi_wstrb = 16'h000f;
    // }
 
    // static signals for IO {
@@ -171,23 +185,25 @@ module memory_management_unit
    assign io_awlock = 'b0;
    assign io_awcache = 'h0;
    assign io_awqos = 'b0;
-   assign io_awburst = 'b1;
+   assign io_awburst = 'b0;
    assign io_awlen = 'h0;
-   assign io_awsize = 'h4;
+   assign io_awsize = 'h3;
 
    assign io_arid = 4'b0;
    assign io_arprot = 'b0;
    assign io_arlock = 'b0;
    assign io_arcache = 'h0;
    assign io_arqos = 'b0;
-   assign io_arburst = 'b1;
+   assign io_arburst = 'b0;
    assign io_arlen = 'h0;
-   assign io_arsize = 'h4;
+   assign io_arsize = 'h3;
 
-   assign io_araddr = 28'(address_d);
-   assign io_arvalid = 'b0;
-   assign io_awaddr = 28'(address_d);
+   always_comb begin
+      io_awaddr <= request.address[27:0];
+      io_araddr <= request.address[27:0];
+   end
    assign io_awvalid = 'b0;
+   assign io_arvalid = 'b0;
 
    assign io_wstrb = 16'hffff;
    assign io_bready = 'b1;
@@ -203,21 +219,28 @@ module memory_management_unit
    assign cram_arlen = ($size(cram_arlen))'($unsigned((2**BURST_W)-1));
    assign cram_arsize = 3'h2; // 2*2 = 4bytes(32bits)
 
-   assign cram_araddr = 28'(address_d);
+   always_comb begin
+      cram_araddr <= request.address[27:0];
+   end
    // }
 
+   assign io_wdata = s_axi_rdata[7:0];
+   assign io_wvalid = s_axi_rvalid;
+   assign io_wlast = s_axi_rvalid;
+   assign io_rready = s_axi_wready;
+
    // serial interface {
-   always_comb begin
-      if (state == mmu_idle && valid && opcode == I_OUTPUT) begin
-         io_wvalid <= 'b1;
-         io_wlast <= 'b1;
-         io_wdata <= data;
-      end else begin
-         io_wvalid <= 'b0;
-         io_wlast <= 'b0;
-         io_wdata <= 'b0;
-      end
-   end
+   // always_comb begin
+   //    if (state == mmu_idle && valid && opcode == I_OUTPUT) begin
+   //       io_wvalid <= 'b1;
+   //       io_wlast <= 'b1;
+   //       io_wdata <= data;
+   //    end else begin
+   //       io_wvalid <= 'b0;
+   //       io_wlast <= 'b0;
+   //       io_wdata <= 'b0;
+   //    end
+   // end
    // }
 
    always_comb begin
@@ -238,8 +261,8 @@ module memory_management_unit
    always_comb begin
       s_axi_arvalid <= 'b0;
       cram_arvalid <= 'b0;
-      if (state == mmu_rd_addr) begin
-         if (address_d < 2**CRAM_ADDR_W) begin
+      if (state == mmu_rd_addr || btn[2]) begin
+         if (request.address < 2**CRAM_ADDR_W) begin
             cram_arvalid <= 'b1;
          end else begin
             s_axi_arvalid <= 'b1;
@@ -278,7 +301,7 @@ module memory_management_unit
             state_n <= mmu_idle;
          end
       end else if (state == mmu_rd_addr) begin
-         if (address_d < 2**CRAM_ADDR_W) begin
+         if (request.address < 2**CRAM_ADDR_W) begin
             if (cram_arvalid && cram_arready) begin
                state_n <= mmu_rd_cram_data;
             end
@@ -299,12 +322,14 @@ module memory_management_unit
    end
 
    always_comb core_ready : begin
-      if (state == mmu_idle && opcode == I_OUTPUT) begin
-         ready <= io_wready;
-      end else if (state == mmu_idle && (opcode == I_INPUT)) begin
-         ready <= io_rvalid;
-      end else if (state == mmu_idle) begin
-         ready <= 'b1;
+      if (state == mmu_idle) begin
+         if (opcode == I_OUTPUT) begin
+            ready <= io_wready;
+         end else if (opcode == I_INPUT) begin
+            ready <= io_rvalid;
+         end else begin
+            ready <= 'b1;
+         end
       end else begin
          ready <= 'b0;
       end
@@ -313,19 +338,21 @@ module memory_management_unit
    always_comb begin
       o_cdb_valid <= 'b0;
       o_cdb <= 'b0;
-      io_rready <= 'b0;
+      cram_rready <= 'b0;
       s_axi_rready <= 'b0;
+      // io_rready <= 'b0;
       if (valid && (opcode == I_INPUT)) begin
          o_cdb_valid <= io_rvalid;
+         // IO value is returned immediately (no state)
          o_cdb <= {rsv_id, 32'(io_rdata)};
-         io_rready <= o_cdb_ready;
+         // io_rready <= o_cdb_ready;
       end else if (state == mmu_rd_cram_data) begin
          o_cdb_valid <= cram_rvalid;
-         o_cdb <= {rsv_id_d, cram_rdata[31:0]};
+         o_cdb <= {request.rsv_id, cram_rdata[31:0]};
          cram_rready <= o_cdb_ready;
       end else if (state == mmu_rd_dram_data) begin
          o_cdb_valid <= s_axi_rvalid;
-         o_cdb <= {rsv_id_d, s_axi_rdata[31:0]};
+         o_cdb <= {request.rsv_id, s_axi_rdata[31:0]};
          s_axi_rready <= o_cdb_ready;
       end
    end // always_comb
@@ -333,19 +360,16 @@ module memory_management_unit
    always_ff @(posedge clk) begin
       if (nrst) begin
          state <= state_n;
-         if (state == mmu_idle && // idle
-             valid && ready) begin
-            rsv_id_d <= rsv_id;
-            address_d <= address;
-            data_d <= data;
-            opcode_d <= opcode;
+         if (state == mmu_idle && valid && ready) begin
+            request.rsv_id <= rsv_id;
+            request.address <= address;
+            request.data <= data;
+            // address_d <= 32'h0000_4000;
+            request.opcode <= opcode;
          end
       end else begin
          state <= mmu_idle;
-         rsv_id_d <= 'b0;
-         address_d <= 'b0;
-         data_d <= 'b0;
-         opcode_d <= 'b0;
+         request <= 'b0;
       end
    end
 
