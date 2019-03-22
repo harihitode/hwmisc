@@ -41,11 +41,9 @@ module fcpu_top
 
    assign tg_compare_error = 'b0;
 
-   wire               clk_ref_i;
    wire               uart_txd_in_d;
    wire               uart_rxd_out_i;
    wire               sys_rst_n;
-   wire               ui_clk;
 
    wire [7:0]         io_wdata;
    wire               io_wvalid;
