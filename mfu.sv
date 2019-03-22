@@ -80,7 +80,6 @@ module memory_functional_unit
    logic                       load_bypassing = 'b0;
    logic [STORE_BUFFER_SIZE-1:0] load_bypassing_vec = 'b0;
    logic                         load_forwarding = 'b0;
-   logic [DATA_W-1:0]            computed_address = 'b0;
 
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer = 'b0;
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer_n = 'b0;
@@ -156,6 +155,8 @@ module memory_functional_unit
                     address.opcode == I_INPUT)) begin
          address_ready <= (load_bypassing & o_ready) |
                           (load_forwarding & o_cdb_ready);
+      end else begin
+         address_ready <= 'b0;
       end
    end
 
@@ -176,7 +177,7 @@ module memory_functional_unit
            end
          endcase
       end
-   end // always_comb
+   end
 
    always_comb begin
       store_buffer_pop <= 'b0;
@@ -201,7 +202,7 @@ module memory_functional_unit
       end else begin
          head_n <= head;
       end
-   end // always_comb
+   end
 
    always_comb tail_countup : begin
       if (store_buffer_push) begin
@@ -213,7 +214,7 @@ module memory_functional_unit
       end else begin
          tail_n <= tail;
       end
-   end // always_comb
+   end
 
    always_ff @(posedge clk) begin
       if (nrst) begin
@@ -227,7 +228,7 @@ module memory_functional_unit
          tail <= 0;
          store_buffer <= 'b0;
       end
-   end // always_ff @ (posedge clk)
+   end
 
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
       always_comb begin
@@ -252,8 +253,8 @@ module memory_functional_unit
          end
          if (store_buffer[i].valid &&
              address_valid &&
-             address[3*DATA_W+INSTR_W+:RSV_ID_W] == store_buffer[i].rob_id) begin
-            store_buffer_n[i].address <= address[2*DATA_W+:DATA_W];
+             address.rob_id == store_buffer[i].rob_id) begin
+            store_buffer_n[i].address <= address.computed_address;
             store_buffer_n[i].addr_ready <= 'b1;
          end else if (address_valid && address_store &&
                       address[2*DATA_W+:DATA_W] == store_buffer[i].address) begin
@@ -296,7 +297,11 @@ module memory_functional_unit
       .clk(clk),
 
       .i_valid(i_valid),
-      .i_data({i_data[3*(RSV_ID_W+DATA_W)+:RSV_ID_W+INSTR_W], i_data[0+:2*(RSV_ID_W+DATA_W)]}),
+      .i_data({
+               i_data[3*(RSV_ID_W+DATA_W)+:RSV_ID_W+INSTR_W],
+               {i_data[RSV_ID_W+DATA_W+DATA_W+:RSV_ID_W], i_data[RSV_ID_W+DATA_W+:DATA_W]},
+               {i_data[DATA_W+:RSV_ID_W], i_data[0+:DATA_W]}
+               }),
       .i_filled(i_filled[1:0]),
       .i_ordered('b1),
       .i_ready(i_ready_preaddress),
@@ -313,7 +318,7 @@ module memory_functional_unit
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
       always_comb begin
          if (store_buffer[i].valid &&
-             address[2*DATA_W+:DATA_W] == store_buffer[i].address) begin
+             address.computed_address == store_buffer[i].address) begin
             load_bypassing_vec[i] <= 'b0;
          end else begin
             load_bypassing_vec[i] <= 'b1;
@@ -331,19 +336,17 @@ module memory_functional_unit
    end // always_comb
 
    always_comb begin
-      automatic logic [DATA_W-1:0] addr;
+      p_computed_address.rob_id <= p_address.rob_id;
+      p_computed_address.opcode <= p_address.opcode;
+      p_computed_address.address_left <= p_address.address_left;
+      p_computed_address.address_right <= p_address.address_right;
 
-      if (p_address[2*DATA_W+:INSTR_W] == I_STOREB ||
-          p_address[2*DATA_W+:INSTR_W] == I_LOADB) begin
-         addr = p_address[DATA_W+:DATA_W] - p_address[0+:DATA_W];
+      if (p_address.opcode == I_STOREB ||
+          p_address.opcode == I_LOADB) begin
+         p_computed_address.computed_address <= p_address.address_left - p_address.address_right;
       end else begin
-         addr = p_address[DATA_W+:DATA_W] + p_address[0+:DATA_W];
+         p_computed_address.computed_address <= p_address.address_left + p_address.address_right;
       end
-      p_computed_address <= {
-                             p_address[2*DATA_W+:INSTR_W+RSV_ID_W],
-                             addr,
-                             p_address[0+:2*DATA_W]
-                             };
    end
 
 endmodule
