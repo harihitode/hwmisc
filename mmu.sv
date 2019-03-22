@@ -224,23 +224,18 @@ module memory_management_unit
    end
    // }
 
-   assign io_wdata = s_axi_rdata[7:0];
-   assign io_wvalid = s_axi_rvalid;
-   assign io_wlast = s_axi_rvalid;
-   assign io_rready = s_axi_wready;
-
    // serial interface {
-   // always_comb begin
-   //    if (state == mmu_idle && valid && opcode == I_OUTPUT) begin
-   //       io_wvalid <= 'b1;
-   //       io_wlast <= 'b1;
-   //       io_wdata <= data;
-   //    end else begin
-   //       io_wvalid <= 'b0;
-   //       io_wlast <= 'b0;
-   //       io_wdata <= 'b0;
-   //    end
-   // end
+   always_comb begin
+      if (state == mmu_idle && valid && opcode == I_OUTPUT) begin
+         io_wvalid <= 'b1;
+         io_wlast <= 'b1;
+         io_wdata <= data;
+      end else begin
+         io_wvalid <= 'b0;
+         io_wlast <= 'b0;
+         io_wdata <= 'b0;
+      end
+   end
    // }
 
    always_comb begin
@@ -340,12 +335,12 @@ module memory_management_unit
       o_cdb <= 'b0;
       cram_rready <= 'b0;
       s_axi_rready <= 'b0;
-      // io_rready <= 'b0;
+      io_rready <= 'b0;
       if (valid && (opcode == I_INPUT)) begin
          o_cdb_valid <= io_rvalid;
          // IO value is returned immediately (no state)
          o_cdb <= {rsv_id, 32'(io_rdata)};
-         // io_rready <= o_cdb_ready;
+         io_rready <= o_cdb_ready;
       end else if (state == mmu_rd_cram_data) begin
          o_cdb_valid <= cram_rvalid;
          o_cdb <= {request.rsv_id, cram_rdata[31:0]};
@@ -364,7 +359,6 @@ module memory_management_unit
             request.rsv_id <= rsv_id;
             request.address <= address;
             request.data <= data;
-            // address_d <= 32'h0000_4000;
             request.opcode <= opcode;
          end
       end else begin
