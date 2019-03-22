@@ -48,6 +48,8 @@ module serial_interface
          recv_cnt <= 0;
       end else if (recv_valid && recv_ready) begin
          recv_cnt <= recv_cnt + 1;
+      end else begin
+         recv_cnt <= recv_cnt;
       end
    end
 
