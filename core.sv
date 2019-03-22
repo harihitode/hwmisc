@@ -150,9 +150,11 @@ module core
 
    always_comb def_arguments : begin
       if (opcode == I_SAVE) begin
-         imm <= (RSV_ID_W+DATA_W)'(program_counter);
+         imm <= {(RSV_ID_W)'($unsigned(0)),
+                 (DATA_W)'($unsigned(program_counter))};
       end else begin
-         imm <= (RSV_ID_W+DATA_W)'(o_current_inst[15:0]);
+         imm <= {(RSV_ID_W)'($unsigned(0)),
+                 (DATA_W)'($unsigned(o_current_inst[15:0]))};
       end
    end
 
