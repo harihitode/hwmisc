@@ -5,8 +5,6 @@ import fcpu_pkg::*;
 module memory_management_unit
   (
    input logic                      clk,
-   // btn
-   input logic [3:0]                btn,
    // core to mmu {
    input logic [RSV_ID_W-1:0]       rsv_id,
    input logic                      valid,
@@ -256,7 +254,7 @@ module memory_management_unit
    always_comb begin
       s_axi_arvalid <= 'b0;
       cram_arvalid <= 'b0;
-      if (state == mmu_rd_addr || btn[2]) begin
+      if (state == mmu_rd_addr) begin
          if (request.address < 2**CRAM_ADDR_W) begin
             cram_arvalid <= 'b1;
          end else begin
