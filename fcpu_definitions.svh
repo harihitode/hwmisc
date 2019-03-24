@@ -4,13 +4,13 @@
 package fcpu_pkg;
 
    localparam DATA_W = 32;
-   localparam CRAM_ADDR_W = 22;
+   localparam CRAM_ADDR_W = 13;
    localparam RSV_ID_W = 5;
    localparam REG_ADDR_W = 5;
    localparam PHT_ADDR_W = 18; // pattern history table
    localparam PHT_DATA_W = 2;
    localparam GMEM_ADDR_W = 28;
-   localparam GMEM_N_BANK_W = 0; // Bitwidth of the number of words of a single AXI data interface, i.e. the global memory bus
+   localparam GMEM_N_BANK_W = 2; // Bitwidth of the number of words of a single AXI data interface, i.e. the global memory git bus
    localparam GMEM_N_BANK = 2**GMEM_N_BANK_W;
    localparam GMEM_DATA_W = GMEM_N_BANK * DATA_W;
    localparam BURST_W = 0;
@@ -67,14 +67,18 @@ package fcpu_pkg;
 
    const logic [INSTR_W-1:0]   I_OUTPUT  = 'b100000;
    const logic [INSTR_W-1:0]   I_LOADB   = 'b100010;
-   const logic [INSTR_W-1:0]   I_STOREB  = 'b110011;
+   const logic [INSTR_W-1:0]   I_STOREB  = 'b100011;
    const logic [INSTR_W-1:0]   I_INPUT   = 'b100100;
+   const logic [INSTR_W-1:0]   I_STORET  = 'b110110;
+   const logic [INSTR_W-1:0]   I_STORETB = 'b110111;
+   const logic [INSTR_W-1:0]   I_LOADT   = 'b111000;
+   const logic [INSTR_W-1:0]   I_LOADTB  = 'b111001;
 
    // const logic [INSTR_W-1:0]   I_BLE     = 'b000010;
    // const logic [INSTR_W-1:0]   I_BLEI    = 'b000101;
    // const logic [INSTR_W-1:0]   I_LOADRF  = 'b001010;
    // const logic [INSTR_W-1:0]   I_STORERF = 'b001011;
-   // const logic [INSTR_W-1:0]   I_FABS    = 'b0011n00;
+   // const logic [INSTR_W-1:0]   I_FABS    = 'b001100;
    // const logic [INSTR_W-1:0]   I_FLOOR   = 'b001110;
    // const logic [INSTR_W-1:0]   I_FNEG    = 'b001111;
    // const logic [INSTR_W-1:0]   I_BLTF    = 'b010001;
