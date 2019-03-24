@@ -96,6 +96,8 @@ module memory_functional_unit
           (address.opcode == I_LOAD ||
            address.opcode == I_LOADB ||
            address.opcode == I_LOADR ||
+           address.opcode == I_LOADT ||
+           address.opcode == I_LOADTB ||
            address.opcode == I_INPUT)) begin
          o_rsv_id <= address.rob_id;
          o_opcode <= address.opcode;
@@ -133,7 +135,7 @@ module memory_functional_unit
 
    always_comb begin
       case (address.opcode)
-        I_STORE, I_STOREB, I_STORER,
+        I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB,
 //        I_STOREF, I_STOREBF, I_STORERF,
         I_OUTPUT : begin
            address_store <= 'b1;
@@ -152,6 +154,8 @@ module memory_functional_unit
                    (address.opcode == I_LOAD ||
                     address.opcode == I_LOADB ||
                     address.opcode == I_LOADR ||
+                    address.opcode == I_LOADT ||
+                    address.opcode == I_LOADTB ||
                     address.opcode == I_INPUT)) begin
          address_ready <= (load_bypassing & o_ready) |
                           (load_forwarding & o_cdb_ready);
@@ -170,7 +174,7 @@ module memory_functional_unit
       store_buffer_push <= 'b0;
       if (i_valid && i_ready) begin
          case (i_data[3*(DATA_W+RSV_ID_W)+:INSTR_W])
-           I_STORE, I_STOREB, I_STORER,
+           I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB,
 //           I_STOREF, I_STOREBF, I_STORERF,
            I_OUTPUT : begin
               store_buffer_push <= 'b1;
@@ -183,7 +187,7 @@ module memory_functional_unit
       store_buffer_pop <= 'b0;
       if ((o_valid && o_ready) || head_buffer.invalidate) begin
          case (o_opcode)
-           I_STORE, I_STOREB, I_STORER,
+           I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB,
 //           I_STOREF, I_STOREBF, I_STORERF,
            I_OUTPUT : begin
               store_buffer_pop <= 'b1;
@@ -318,6 +322,7 @@ module memory_functional_unit
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
       always_comb begin
          if (store_buffer[i].valid &&
+             store_buffer[i].addr_ready &&
              address.computed_address == store_buffer[i].address) begin
             load_bypassing_vec[i] <= 'b0;
          end else begin
@@ -342,7 +347,9 @@ module memory_functional_unit
       p_computed_address.address_right <= p_address.address_right;
 
       if (p_address.opcode == I_STOREB ||
-          p_address.opcode == I_LOADB) begin
+          p_address.opcode == I_LOADB  ||
+          p_address.opcode == I_STORETB ||
+          p_address.opcode == I_LOADTB) begin
          p_computed_address.computed_address <= p_address.address_left - p_address.address_right;
       end else begin
          p_computed_address.computed_address <= p_address.address_left + p_address.address_right;

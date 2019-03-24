@@ -4,130 +4,130 @@ import fcpu_pkg::*;
 
 module memory_management_unit
   (
-   input logic                      clk,
+   input logic                             clk,
    // core to mmu {
-   input logic [RSV_ID_W-1:0]       rsv_id,
-   input logic                      valid,
-   input logic [DATA_W-1:0]         data,
-   input logic [DATA_W-1:0]         address,
-   input logic [INSTR_W-1:0]        opcode,
-   output logic                     ready,
+   input logic [RSV_ID_W-1:0]              rsv_id,
+   input logic                             valid,
+   input logic [DATA_W-1:0]                data,
+   input logic [DATA_W-1:0]                address,
+   input logic [INSTR_W-1:0]               opcode,
+   output logic                            ready,
    // }
    // GMEM {
    // Slave Interface Write Address Ports
-   output logic [ID_WIDTH-1:0]      s_axi_awid,
-   output logic [GMEM_ADDR_W-1:0]   s_axi_awaddr,
-   output logic [7:0]               s_axi_awlen,
-   output logic [2:0]               s_axi_awsize,
-   output logic [1:0]               s_axi_awburst,
-   output logic [0:0]               s_axi_awlock,
-   output logic [3:0]               s_axi_awcache,
-   output logic [2:0]               s_axi_awprot,
-   output logic [3:0]               s_axi_awqos,
-   output logic                     s_axi_awvalid,
-   input logic                      s_axi_awready,
+   output logic [ID_WIDTH-1:0]             s_axi_awid,
+   output logic [GMEM_ADDR_W-1:0]          s_axi_awaddr,
+   output logic [7:0]                      s_axi_awlen,
+   output logic [2:0]                      s_axi_awsize,
+   output logic [1:0]                      s_axi_awburst,
+   output logic [0:0]                      s_axi_awlock,
+   output logic [3:0]                      s_axi_awcache,
+   output logic [2:0]                      s_axi_awprot,
+   output logic [3:0]                      s_axi_awqos,
+   output logic                            s_axi_awvalid,
+   input logic                             s_axi_awready,
    // Slave Interface Write Data Ports
-   output logic [GMEM_DATA_W-1:0]   s_axi_wdata,
-   output logic [GMEM_DATA_W/8-1:0] s_axi_wstrb,
-   output logic                     s_axi_wlast,
-   output logic                     s_axi_wvalid,
-   input logic                      s_axi_wready,
+   output logic [DATA_W*GMEM_N_BANK-1:0]   s_axi_wdata,
+   output logic [DATA_W*GMEM_N_BANK/8-1:0] s_axi_wstrb,
+   output logic                            s_axi_wlast,
+   output logic                            s_axi_wvalid,
+   input logic                             s_axi_wready,
    // Slave Interface Write Response Ports
-   output logic                     s_axi_bready,
-   input logic [ID_WIDTH-1:0]       s_axi_bid,
-   input logic [1:0]                s_axi_bresp,
-   input logic                      s_axi_bvalid,
+   output logic                            s_axi_bready,
+   input logic [ID_WIDTH-1:0]              s_axi_bid,
+   input logic [1:0]                       s_axi_bresp,
+   input logic                             s_axi_bvalid,
    // Slave Interface Read Address Ports
-   output logic [ID_WIDTH-1:0]      s_axi_arid,
-   output logic [GMEM_ADDR_W-1:0]   s_axi_araddr,
-   output logic [7:0]               s_axi_arlen,
-   output logic [2:0]               s_axi_arsize,
-   output logic [1:0]               s_axi_arburst,
-   output logic [0:0]               s_axi_arlock,
-   output logic [3:0]               s_axi_arcache,
-   output logic [2:0]               s_axi_arprot,
-   output logic [3:0]               s_axi_arqos,
-   output logic                     s_axi_arvalid,
-   input logic                      s_axi_arready,
+   output logic [ID_WIDTH-1:0]             s_axi_arid,
+   output logic [GMEM_ADDR_W-1:0]          s_axi_araddr,
+   output logic [7:0]                      s_axi_arlen,
+   output logic [2:0]                      s_axi_arsize,
+   output logic [1:0]                      s_axi_arburst,
+   output logic [0:0]                      s_axi_arlock,
+   output logic [3:0]                      s_axi_arcache,
+   output logic [2:0]                      s_axi_arprot,
+   output logic [3:0]                      s_axi_arqos,
+   output logic                            s_axi_arvalid,
+   input logic                             s_axi_arready,
    // Slave Interface Read Data Ports
-   output logic                     s_axi_rready,
-   input logic [ID_WIDTH-1:0]       s_axi_rid,
-   input logic [GMEM_DATA_W-1:0]    s_axi_rdata,
-   input logic [1:0]                s_axi_rresp,
-   input logic                      s_axi_rlast,
-   input logic                      s_axi_rvalid,
+   output logic                            s_axi_rready,
+   input logic [ID_WIDTH-1:0]              s_axi_rid,
+   input logic [DATA_W*GMEM_N_BANK-1:0]    s_axi_rdata,
+   input logic [1:0]                       s_axi_rresp,
+   input logic                             s_axi_rlast,
+   input logic                             s_axi_rvalid,
    // }
    // I/O {
    // Slave Interface Write Address Ports
-   output logic [ID_WIDTH-1:0]      io_awid,
-   output logic [27:0]              io_awaddr,
-   output logic [7:0]               io_awlen,
-   output logic [2:0]               io_awsize,
-   output logic [1:0]               io_awburst,
-   output logic [0:0]               io_awlock,
-   output logic [3:0]               io_awcache,
-   output logic [2:0]               io_awprot,
-   output logic [3:0]               io_awqos,
-   output logic                     io_awvalid,
-   input logic                      io_awready,
+   output logic [ID_WIDTH-1:0]             io_awid,
+   output logic [27:0]                     io_awaddr,
+   output logic [7:0]                      io_awlen,
+   output logic [2:0]                      io_awsize,
+   output logic [1:0]                      io_awburst,
+   output logic [0:0]                      io_awlock,
+   output logic [3:0]                      io_awcache,
+   output logic [2:0]                      io_awprot,
+   output logic [3:0]                      io_awqos,
+   output logic                            io_awvalid,
+   input logic                             io_awready,
    // Slave Interface Write Data Ports
-   output logic [7:0]               io_wdata,
-   output logic [15:0]              io_wstrb,
-   output logic                     io_wlast,
-   output logic                     io_wvalid,
-   input logic                      io_wready,
+   output logic [7:0]                      io_wdata,
+   output logic [15:0]                     io_wstrb,
+   output logic                            io_wlast,
+   output logic                            io_wvalid,
+   input logic                             io_wready,
    // Slave Interface Write Response Ports
-   output logic                     io_bready,
-   input logic [ID_WIDTH-1:0]       io_bid,
-   input logic [1:0]                io_bresp,
-   input logic                      io_bvalid,
+   output logic                            io_bready,
+   input logic [ID_WIDTH-1:0]              io_bid,
+   input logic [1:0]                       io_bresp,
+   input logic                             io_bvalid,
    // Slave Interface Read Address Ports
-   output logic [ID_WIDTH-1:0]      io_arid,
-   output logic [27:0]              io_araddr,
-   output logic [7:0]               io_arlen,
-   output logic [2:0]               io_arsize,
-   output logic [1:0]               io_arburst,
-   output logic [0:0]               io_arlock,
-   output logic [3:0]               io_arcache,
-   output logic [2:0]               io_arprot,
-   output logic [3:0]               io_arqos,
-   output logic                     io_arvalid,
-   input logic                      io_arready,
+   output logic [ID_WIDTH-1:0]             io_arid,
+   output logic [27:0]                     io_araddr,
+   output logic [7:0]                      io_arlen,
+   output logic [2:0]                      io_arsize,
+   output logic [1:0]                      io_arburst,
+   output logic [0:0]                      io_arlock,
+   output logic [3:0]                      io_arcache,
+   output logic [2:0]                      io_arprot,
+   output logic [3:0]                      io_arqos,
+   output logic                            io_arvalid,
+   input logic                             io_arready,
    // Slave Interface Read Data Ports
-   output logic                     io_rready,
-   input logic [ID_WIDTH-1:0]       io_rid,
-   input logic [7:0]                io_rdata,
-   input logic [1:0]                io_rresp,
-   input logic                      io_rlast,
-   input logic                      io_rvalid,
+   output logic                            io_rready,
+   input logic [ID_WIDTH-1:0]              io_rid,
+   input logic [7:0]                       io_rdata,
+   input logic [1:0]                       io_rresp,
+   input logic                             io_rlast,
+   input logic                             io_rvalid,
    // }
    // CRAM {
    // cram addr ports
-   output logic [ID_WIDTH-1:0]      cram_arid,
-   output logic [31:0]              cram_araddr,
-   output logic [7:0]               cram_arlen,
-   output logic [2:0]               cram_arsize,
-   output logic [1:0]               cram_arburst,
-   output logic [0:0]               cram_arlock,
-   output logic [3:0]               cram_arcache,
-   output logic [2:0]               cram_arprot,
-   output logic [3:0]               cram_arqos,
-   output logic                     cram_arvalid,
-   input logic                      cram_arready,
+   output logic [ID_WIDTH-1:0]             cram_arid,
+   output logic [31:0]                     cram_araddr,
+   output logic [7:0]                      cram_arlen,
+   output logic [2:0]                      cram_arsize,
+   output logic [1:0]                      cram_arburst,
+   output logic [0:0]                      cram_arlock,
+   output logic [3:0]                      cram_arcache,
+   output logic [2:0]                      cram_arprot,
+   output logic [3:0]                      cram_arqos,
+   output logic                            cram_arvalid,
+   input logic                             cram_arready,
    // cram data ports
-   output logic                     cram_rready,
-   input logic [ID_WIDTH-1:0]       cram_rid,
-   input logic [31:0]               cram_rdata,
-   input logic [1:0]                cram_rresp,
-   input logic                      cram_rlast,
-   input logic                      cram_rvalid,
+   output logic                            cram_rready,
+   input logic [ID_WIDTH-1:0]              cram_rid,
+   input logic [31:0]                      cram_rdata,
+   input logic [1:0]                       cram_rresp,
+   input logic                             cram_rlast,
+   input logic                             cram_rvalid,
    // }
 
-   output logic [CDB_W-1:0]         o_cdb,
-   output logic                     o_cdb_valid,
-   input logic                      o_cdb_ready,
+   output logic [CDB_W-1:0]                o_cdb,
+   output logic                            o_cdb_valid,
+   input logic                             o_cdb_ready,
 
-   input logic                      nrst
+   input logic                             nrst
    );
 
    typedef struct                   packed {
@@ -152,8 +152,6 @@ module memory_management_unit
    assign s_axi_awburst = 2'b1;
    assign s_axi_awlen = 'b0;
    assign s_axi_awsize = 3'h7;
-   // assign s_axi_awlen = ($size(s_axi_awlen))'($unsigned((2**BURST_W)-1));  // once per burst
-   // assign s_axi_awsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
 
    assign s_axi_arid = 4'b0;
    assign s_axi_arprot = 'b0;
@@ -163,8 +161,6 @@ module memory_management_unit
    assign s_axi_arburst = 'b1;
    assign s_axi_arlen = 'b0;
    assign s_axi_arsize = 3'h7;
-   // assign s_axi_arlen = ($size(s_axi_arlen))'($unsigned((2**BURST_W)-1));
-   // assign s_axi_arsize = 3'($unsigned(2+GMEM_N_BANK_W)); // 2*2 = 4bytes(32bits)
 
    always_comb begin
       s_axi_awaddr <= request.address[27:0];
@@ -172,9 +168,37 @@ module memory_management_unit
    end
 
    always_comb begin
-      s_axi_wdata <= 128'(request.data);
+      if (request.opcode == I_STORET ||
+          request.opcode == I_STORETB) begin
+         s_axi_wdata <= {request.data[7:0], request.data[7:0], request.data[7:0], request.data[7:0],
+                         request.data[7:0], request.data[7:0], request.data[7:0], request.data[7:0],
+                         request.data[7:0], request.data[7:0], request.data[7:0], request.data[7:0],
+                         request.data[7:0], request.data[7:0], request.data[7:0], request.data[7:0]};
+      end else begin
+         s_axi_wdata <= {request.data,
+                         request.data,
+                         request.data,
+                         request.data};
+      end
    end
-   assign s_axi_wstrb = 16'h000f;
+
+   always_comb begin
+      if (request.opcode == I_STORET ||
+          request.opcode == I_STORETB) begin
+         s_axi_wstrb <= 'b1 << $unsigned(s_axi_awaddr[3:0]);
+      end else begin
+         case (s_axi_awaddr[3:2])
+           2'b00:
+             s_axi_wstrb <= 16'h000f;
+           2'b01:
+             s_axi_wstrb <= 16'h00f0;
+           2'b10:
+             s_axi_wstrb <= 16'h0f00;
+           2'b11:
+             s_axi_wstrb <= 16'hf000;
+         endcase
+      end
+   end
    // }
 
    // static signals for IO {
@@ -268,11 +292,11 @@ module memory_management_unit
       if (state == mmu_idle) begin
          if (valid && ready) begin
             case (opcode)
-              I_STORE, I_STOREB, I_STORER : begin
+              I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB : begin
 //              I_STOREF, I_STOREBF, I_STORERF : begin
                  state_n <= mmu_wr_addr;
               end
-              I_LOAD, I_LOADB, I_LOADR : begin
+              I_LOAD, I_LOADB, I_LOADR, I_LOADT, I_LOADTB : begin
 //              I_LOADF, I_LOADBF, I_LOADRF : begin
                  state_n <= mmu_rd_addr;
               end
@@ -345,7 +369,54 @@ module memory_management_unit
          cram_rready <= o_cdb_ready;
       end else if (state == mmu_rd_dram_data) begin
          o_cdb_valid <= s_axi_rvalid;
-         o_cdb <= {request.rsv_id, s_axi_rdata[31:0]};
+         if (request.opcode == I_LOADT ||
+             request.opcode == I_LOADTB) begin
+            case (s_axi_araddr[3:0])
+               4'b0000:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[7:0]};
+               4'b0001:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[15:8]};
+               4'b0010:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[23:16]};
+               4'b0011:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[31:24]};
+               4'b0100:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[39:32]};
+               4'b0101:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[47:40]};
+               4'b0110:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[55:48]};
+               4'b0111:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[63:56]};
+               4'b1000:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[71:64]};
+               4'b1001:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[79:72]};
+               4'b1010:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[87:80]};
+               4'b1011:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[95:88]};
+               4'b1100:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[103:96]};
+               4'b1101:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[111:104]};
+               4'b1110:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[119:112]};
+               4'b1111:
+                 o_cdb <= {request.rsv_id, 24'h0, s_axi_rdata[127:120]};
+            endcase
+         end else begin
+            case (s_axi_araddr[3:2])
+              2'b00:
+                o_cdb <= {request.rsv_id, s_axi_rdata[31:0]};
+              2'b01:
+                o_cdb <= {request.rsv_id, s_axi_rdata[63:32]};
+              2'b10:
+                o_cdb <= {request.rsv_id, s_axi_rdata[95:64]};
+              2'b11:
+                o_cdb <= {request.rsv_id, s_axi_rdata[127:96]};
+            endcase
+         end
          s_axi_rready <= o_cdb_ready;
       end
    end // always_comb
