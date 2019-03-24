@@ -60,8 +60,8 @@ module scheduler
    assign s_cram_arprot = 'b0;
    assign s_cram_arqos = 'b0;
 
-   assign s_cram_rready = ce;
    assign s_cram_arvalid = ce;
+   assign s_cram_rready = 'b1;
 
    typedef struct packed {
       logic [CRAM_ADDR_W-1:0] addr;
@@ -83,6 +83,7 @@ module scheduler
    logic                      addr_buffer_addr_push = 'b0;
    logic                      addr_buffer_data_push = 'b0;
    logic                      addr_buffer_pop = 'b0;
+   logic                      address_valid_d = 'b0;
 
    always_comb head_countup : begin
       if (addr_buffer_pop) begin
@@ -210,6 +211,8 @@ module scheduler
    always_comb begin
       if (!nrst) begin
          s_cram_araddr <= 'b0;
+      end else if (address_valid_d) begin
+         s_cram_araddr <= s_cram_araddr_i;
       end else if (!ce) begin
          s_cram_araddr <= s_cram_araddr_d;
       end else if (addr_buffer[$unsigned(head)].valid &&
@@ -228,12 +231,14 @@ module scheduler
          head <= head_n;
          addr_tail <= addr_tail_n;
          data_tail <= data_tail_n;
+         address_valid_d <= address_valid;
       end else begin
          s_cram_araddr_i <= 'b0;
          s_cram_araddr_d <= 'b0;
          head <= 0;
          addr_tail <= 0;
          data_tail <= 0;
+         address_valid_d <= 'b0;
       end
    end
 
