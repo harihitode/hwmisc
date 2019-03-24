@@ -52,6 +52,7 @@ module fcpu_wrapper
       .init_calib_complete(),
       .tg_compare_error(),
       .ui_clk(),
+      .device_temp_i(12'b0),
       .sys_rst(ck_rst & locked)
       );
 

@@ -4,8 +4,6 @@ import fcpu_pkg::*;
 
 module fcpu
   (
-   // clk & reset
-   input logic                             clk,
    // CRAM {
    // cram addr ports
    output logic [3:0]                      s_cram_arid,
@@ -48,8 +46,8 @@ module fcpu
    input logic                             s_axi_wready,
    // Slave Interface Write Response Ports
    output logic                            s_axi_bready,
-   input logic [3:0]                       s_axi_bid,
-   input logic [ID_WIDTH-1:0]              s_axi_bresp,
+   input logic [ID_WIDTH-1:0]              s_axi_bid,
+   input logic [1:0]                       s_axi_bresp,
    input logic                             s_axi_bvalid,
    // Slave Interface Read Address Ports
    output logic [ID_WIDTH-1:0]             s_axi_arid,
@@ -66,7 +64,7 @@ module fcpu
    // Slave Interface Read Data Ports
    output logic                            s_axi_rready,
    input logic [ID_WIDTH-1:0]              s_axi_rid,
-   input logic [GMEM_DATA_W-1:0]           s_axi_rdata,
+   input logic [DATA_W*GMEM_N_BANK-1:0]    s_axi_rdata,
    input logic [1:0]                       s_axi_rresp,
    input logic                             s_axi_rlast,
    input logic                             s_axi_rvalid,
@@ -115,7 +113,10 @@ module fcpu
    input logic                             io_rlast,
    input logic                             io_rvalid,
    // }
-   input logic                             sys_rst_n
+   // clk & reset
+   input logic                             clk,
+   input logic                             sys_rst_n,
+   output logic                            halt
    );
 
    // cram addr ports

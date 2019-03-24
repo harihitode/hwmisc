@@ -40,7 +40,8 @@ module core
    input logic                 mmu_cdb_valid,
    output logic                mmu_cdb_ready,
    // }
-   input                       nrst
+   output logic                halt = 'b0,
+   input logic                 nrst
    );
 
    wire                        take_flag;
@@ -57,7 +58,6 @@ module core
    wire [INSTR_W-1:0]          opcode;
    wire [CRAM_ADDR_W-1:0]      program_counter;
    logic [CRAM_ADDR_W-1:0]     committed_program_counter = 'b0;
-   logic                       halt = 'b0;
 
    // common data bus
    localparam N_UNITS = 4;
@@ -226,7 +226,7 @@ module core
 
    always_comb begin
       case (opcode)
-        I_STORE, I_STOREB, I_STORER,
+        I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB,
 //        I_STOREF, I_STOREBF, I_STORERF,
         I_OUTPUT :
           rob_no_wait <= 'b1;
@@ -237,7 +237,7 @@ module core
 
    always_comb mfu_reservation_data : begin
       case (opcode)
-        I_LOAD, I_LOADB : begin
+        I_LOAD, I_LOADB, I_LOADT, I_LOADTB : begin
 //        I_LOADF, I_LOADBF : begin
            mfu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, operands[1], imm};
            mfu_filled <= {1'b1, operands_filled[1], 1'b1};
@@ -250,8 +250,8 @@ module core
            mfu_data <= {rob_id, opcode, {RSV_ID_W+DATA_W{1'b0}}, {RSV_ID_W+DATA_W{1'b1}}, {RSV_ID_W+DATA_W{1'b0}}};
            mfu_filled <= {1'b1, 1'b1, 1'b1};
         end
-        I_STORE, I_STOREB : begin
-//        I_STOREF, I_STOREBF : begin
+        I_STORE, I_STOREB, I_STORET, I_STORETB : begin
+           //        I_STOREF, I_STOREBF : begin
            mfu_data <= {rob_id, opcode, operands[2], operands[1], imm};
            mfu_filled <= {operands_filled[2], operands_filled[1], 1'b1};
         end
@@ -298,9 +298,9 @@ module core
 
    always_comb def_mfu_reserve : begin
       case (opcode)
-        I_LOAD, I_LOADB, I_LOADR,
+        I_LOAD, I_LOADB, I_LOADR, I_LOADT, I_LOADTB,
 //        I_LOADF, I_LOADBF, I_LOADRF,
-        I_STORE, I_STOREB, I_STORER,
+        I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB,
 //        I_STOREF, I_STOREBF, I_STORERF,
         I_INPUT, I_OUTPUT :
           mfu_reserve <= ~halt & o_current_valid;
@@ -311,7 +311,7 @@ module core
 
    always_comb def_reg_reserve : begin
       case (opcode)
-        I_LOAD, I_LOADB, I_LOADR,
+        I_LOAD, I_LOADB, I_LOADR, I_LOADT, I_LOADTB,
         I_ADD, I_ADDI, I_SUB, I_SUBI,
         I_SL, I_SRL, I_SRA,
         I_AND, I_OR, I_XOR,
@@ -343,9 +343,9 @@ module core
            I_AND, I_OR, I_XOR,
            I_SAVE, I_SETI1, I_SETI2 :
              halt <= ~alu_ready;
-           I_LOAD, I_LOADB, I_LOADR,
+           I_LOAD, I_LOADB, I_LOADR, I_LOADT, I_LOADTB,
 //           I_LOADF, I_LOADBF, I_LOADRF,
-           I_STORE, I_STOREB, I_STORER,
+           I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB,
 //           I_STOREF, I_STOREBF, I_STORERF,
            I_INPUT, I_OUTPUT :
              halt <= ~mfu_ready;
@@ -375,7 +375,7 @@ module core
              commit_data.opcode == I_JMPR) begin
             sch_address <= commit_data.content;
          end else if (true_condition) begin
-            sch_address <= committed_program_counter + (CRAM_ADDR_W)'(commit_data.content);
+            sch_address <= committed_program_counter + $unsigned(commit_data.content);
          end else begin
             sch_address <= committed_program_counter + 'h4;
          end
@@ -409,12 +409,12 @@ module core
            I_SL, I_SRL, I_SRA,
            I_AND, I_OR, I_XOR,
            I_SAVE, I_SETI1, I_SETI2,
-           I_LOAD, I_LOADB, I_LOADR,
+           I_LOAD, I_LOADB, I_LOADR, I_LOADT, I_LOADTB,
 //           I_LOADF, I_LOADBF, I_LOADRF,
            I_INPUT : begin
               reg_we <= 'b1;
            end
-           I_STORE, I_STOREB, I_STORER,
+           I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB,
 //           I_STOREF, I_STOREBF, I_STORERF,
            I_OUTPUT : begin
               store_commit_valid <= 'b1;

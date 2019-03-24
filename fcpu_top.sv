@@ -31,16 +31,18 @@ module fcpu_top
    output [1:0]       ddr3_dm,
    output [0:0]       ddr3_odt,
    // clk & reset
+   input              sys_clk_i,
+   input              clk_ref_i,
+   input [11:0]       device_temp_i,
    output             init_calib_complete,
    output             tg_compare_error,
-   input              clk_ref_i,
-   input              sys_clk_i,
    output             ui_clk,
    input              sys_rst
    );
 
    assign tg_compare_error = 'b0;
 
+   wire               halt;
    wire               uart_txd_in_d;
    wire               uart_rxd_out_i;
    wire               sys_rst_n;
@@ -136,7 +138,7 @@ module fcpu_top
       led[0] <= sw[0];
       led[1] <= sys_rst_n;
       led[2] <= init_calib_complete;
-      led[3] <= 1'b1;
+      led[3] <= ~halt;
    end
 
    assign sys_rst_n = mmcm_locked & sys_rst & init_calib_complete;
@@ -144,13 +146,9 @@ module fcpu_top
    IBUF tx_buf (.I(uart_txd_in), .O(uart_txd_in_d));
    OBUF rx_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
 
-   assign s_axi_wstrb[15:4] = '0;
-   assign s_axi_wdata[127:32] = '0;
    fcpu fcpu_inst
      (.*,
       .clk(ui_clk),
-      .s_axi_wdata(s_axi_wdata[31:0]),
-      .s_axi_wstrb(s_axi_wstrb[3:0]),
       // {
       // write address
       .io_awid(),
@@ -268,7 +266,6 @@ module fcpu_top
       .app_ref_ack(),
       .app_zq_ack(),
       .device_temp(),
-      .device_temp_i(12'b0),
       .sys_rst(sys_rst) // negative
       );
 
