@@ -139,7 +139,8 @@ module fcpu_tb ();
       .io_rvalid(io_rvalid),
       // }
       .clk(clk),
-      .sys_rst_n(nrst)
+      .sys_rst_n(nrst),
+      .halt()
       );
 
    serial_interface
