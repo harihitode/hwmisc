@@ -114,24 +114,30 @@ module memory_functional_unit
       end
    end // always_comb
 
+   logic [STORE_BUFFER_SIZE-1:0] load_forwarding_v;
+   logic                         o_cdb_v [STORE_BUFFER_SIZE:0];
+
    always_comb begin
-      load_forwarding <= 'b0;
-      o_cdb <= 'b0;
-      o_cdb_valid <= 'b0;
-      if (address_valid && !address_store) begin
-         for (int i = 0; i < STORE_BUFFER_SIZE; i++) begin
-            if (address.computed_address == store_buffer[i].address &&
-                address.computed_address != '1 &&
-                store_buffer[i].data_ready &&
-                !store_buffer[i].override) begin
-               load_forwarding <= 'b1;
-               o_cdb <= {address.rob_id, store_buffer[i].data};
-               o_cdb_valid <= 'b1;
-               break;
-            end
+      load_forwarding <= |load_forwarding_v;
+      o_cdb_valid <= |load_forwarding_v;
+      o_cdb <= o_cdb_v[STORE_BUFFER_SIZE];
+   end
+
+   generate for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
+      always_comb begin
+         if (address_valid && !address_store &&
+             address.computed_address == store_buffer[i].address &&
+             address.computed_address != '1 &&
+             store_buffer[i].data_ready &&
+             !store_buffer[i].override) begin
+            load_forwarding_v[i] <= 'b1;
+            o_cdb_v[i+1] <= {address.rob_id, store_buffer[i].data};
+         end else begin
+            load_forwarding_v[i] <= 'b0;
+            o_cdb_v[i+1] <= o_cdb_v[i];
          end
       end
-   end // always_comb
+   end endgenerate
 
    always_comb begin
       case (address.opcode)
