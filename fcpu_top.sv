@@ -124,18 +124,24 @@ module fcpu_top
 
    wire               mmcm_locked;
 
-   always_ff @(posedge ui_clk) begin
-      if (btn[0]) begin
-         io_wvalid_i <= 1'b1;
-         io_wdata_i <= 8'h60;
-      end else begin
-         io_wvalid_i <= io_wvalid;
-         io_wdata_i <= io_wdata;
-      end
+   always_comb begin
+      io_wvalid_i <= (|btn) | io_wvalid;
+      case (btn)
+        4'b0001:
+          io_wdata_i <= s_cram_araddr[7:0];
+        4'b0010:
+          io_wdata_i <= s_cram_araddr[15:8];
+        4'b0100:
+          io_wdata_i <= s_cram_araddr[23:16];
+        4'b1000:
+          io_wdata_i <= s_cram_araddr[31:24];
+        default:
+          io_wdata_i <= io_wdata;
+      endcase
    end
 
    always_comb begin
-      led[0] <= sw[0];
+      led[0] <= |btn;
       led[1] <= sys_rst_n;
       led[2] <= init_calib_complete;
       led[3] <= ~halt;
