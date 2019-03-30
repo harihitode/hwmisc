@@ -63,13 +63,13 @@ module core
    localparam N_UNITS = 4;
    localparam N_REG_RD_PORTS = 3;
    localparam N_ROB_RD_PORTS = 6;
-   logic [CDB_W-1:0]           cdb = 'b0;
-   logic                       cdb_exception = 'b0;
+   wire [CDB_W-1:0]            cdb;
+   wire                        cdb_exception;
    wire                        cdb_valid;
    wire [N_UNITS-1:0][CDB_W-1:0] units_cdb;
    wire [N_UNITS-1:0]            units_cdb_valid;
    logic [N_UNITS-1:0]           units_cdb_exception = 'b0;
-   logic [N_UNITS-1:0]           units_cdb_ready = '0;
+   wire [N_UNITS-1:0]            units_cdb_ready;
 
    // ROB
    wire [RSV_ID_W-1:0]           rob_id;
@@ -133,16 +133,6 @@ module core
 
    assign cdb_valid = |units_cdb_valid;
    assign o_mfu_ready = mmu_ready;
-
-   always_comb begin
-      for (int i = 0; i < N_UNITS; i++) begin
-         if (units_cdb_valid[i]) begin
-            cdb <= units_cdb[i];
-            cdb_exception <= units_cdb_exception[i];
-            break;
-         end
-      end
-   end
 
    assign opcode = o_current_inst[INSTR_POS+:INSTR_W];
    assign program_counter = o_current_pc;
@@ -322,15 +312,25 @@ module core
       endcase
    end
 
-   always_comb cdb_requests_check : begin
-      units_cdb_ready <= 'b0;
-      for (int i = 0; i < N_UNITS; i++) begin
+   logic [N_UNITS-1:0] units_cdb_ready_v [N_UNITS:0];
+   logic [N_UNITS-1:0] units_cdb_exception_v [N_UNITS:0];
+   logic [CDB_W-1:0]   cdb_v [N_UNITS:0];
+   generate for (genvar i = 0; i < N_UNITS; i++) begin
+      always_comb begin
          if (units_cdb_valid[i]) begin
-            units_cdb_ready[i] <= 'b1;
-            break;
+            units_cdb_ready_v[i+1] <= ('b1 << $unsigned(i));
+            units_cdb_exception_v[i+1] <= units_cdb_exception[i];
+            cdb_v[i+1] <= units_cdb[i];
+         end else begin
+            units_cdb_ready_v[i+1] <= units_cdb_ready_v[i];
+            units_cdb_exception_v[i+1] <= units_cdb_exception_v[i];
+            cdb_v[i+1] <= cdb_v[i];
          end
       end
-   end
+   end endgenerate
+   assign units_cdb_ready = units_cdb_ready_v[N_UNITS];
+   assign cdb_exception = units_cdb_exception_v[N_UNITS];
+   assign cdb = cdb_v[N_UNITS];
 
    always_comb halt_check : begin
       if (!rob_ready || pred_miss) begin
