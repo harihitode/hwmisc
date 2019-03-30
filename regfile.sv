@@ -43,30 +43,27 @@ module register_file
          rdData[i] <= {query[$unsigned(args[i])], regs[i]};
          rdData_filled[i] <= filled[$unsigned(args[i])];
       end
-   end end
-   endgenerate
+   end end endgenerate
 
    assign wr_reg_id = wrAddr;
    assign wr_reg_rsv_id = wrQueAddr;
    assign wr_reg_data = (we) ? wrData : reg_file[$unsigned(wr_reg_id)];
 
-   generate begin
-      for (genvar i = 0; i < 2**REG_ADDR_W; i++) begin
-         always_comb begin
-            query_n[i] <= query[i];
-            filled_n[i] <= filled[i];
-            // arg[2] is the destination register
-            // wr_reg_id is committed ID
-            if (rsv && i == $unsigned(args[2])) begin
-               query_n[i] <= rob_id;
-               filled_n[i] <= 'b0;
-            end else if (we && i == $unsigned(wr_reg_id) &&
-                         query[i] == $unsigned(wr_reg_rsv_id)) begin
-               filled_n[i] <= 'b1;
-            end
-         end // always_comb
+   generate begin for (genvar i = 0; i < 2**REG_ADDR_W; i++) begin
+      always_comb begin
+         query_n[i] <= query[i];
+         filled_n[i] <= filled[i];
+         // arg[2] is the destination register
+         // wr_reg_id is committed ID
+         if (rsv && i == $unsigned(args[2])) begin
+            query_n[i] <= rob_id;
+            filled_n[i] <= 'b0;
+         end else if (we && i == $unsigned(wr_reg_id) &&
+                      query[i] == $unsigned(wr_reg_rsv_id)) begin
+            filled_n[i] <= 'b1;
+         end
       end
-   end endgenerate
+   end end endgenerate
 
    always_ff @(posedge clk) begin
       if (nrst) begin
