@@ -28,14 +28,16 @@ module fifo
 
    assign a_ready = ~full;
    assign b_valid = (write_pos == read_pos) ? full : 1'b1;
-   assign b_data = mem[read_pos];
    assign instruction = {a_valid & a_ready, b_valid & b_ready};
 
    localparam int                            NEXT_POS = (FIFO_DEPTH_W > 0) ? 1 : 0;
 
    always_ff @(posedge clk) begin
       if (nrst) begin
-         if (instruction & FIFO_R) read_pos <= read_pos + NEXT_POS;
+         if (instruction & FIFO_R) begin
+            b_data <= mem[read_pos + NEXT_POS];
+            read_pos <= read_pos + NEXT_POS;
+         end
          if (instruction & FIFO_W) write_pos <= write_pos + NEXT_POS;
          if (instruction & FIFO_W) mem[write_pos] <= a_data;
       end else begin
