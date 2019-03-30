@@ -70,13 +70,10 @@ module reorder_buffer
 
    // ROB data read {
    generate begin for (genvar i = 0; i < ROB_PORT_W; i++) begin
-      always_latch begin
-         for (int j = 0; j < 2**N_ROB_W; j++) begin
-            if (j == rob_id[i]) begin
-               rob_data[i] <= {RSV_ID_W'(j), station[j].content};
-               rob_data_filled[i] <= station[j].ready;
-            end
-         end
+      always_comb begin
+         rob_data[i] <= {station[$unsigned(rob_id[i])].station_id,
+                         station[$unsigned(rob_id[i])].content};
+         rob_data_filled[i] <= station[$unsigned(rob_id[i])].ready;
       end
    end end
    endgenerate
