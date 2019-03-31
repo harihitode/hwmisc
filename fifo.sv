@@ -11,7 +11,7 @@ module fifo
     input [DATA_W-1:0]      a_data, // in port
     input                   a_valid,
     output reg              a_ready,
-    output reg [DATA_W-1:0] b_data,
+    output reg [DATA_W-1:0] b_data = 'b0,
     output reg              b_valid,
     input                   b_ready
     );
