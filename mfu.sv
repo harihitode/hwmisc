@@ -47,7 +47,16 @@ module memory_functional_unit
       logic [DATA_W-1:0]       address;
       logic                    override;
    } store_buffer_t;
-   store_buffer_t head_buffer;
+   store_buffer_t store_buffer_head;
+
+   typedef struct packed {
+      logic [RSV_ID_W-1:0] rob_id;
+      logic [INSTR_W-1:0]  opcode;
+      logic [DATA_W-1:0]   address;
+      logic                forward;
+      logic [DATA_W-1:0]   data;
+   } load_buffer_t;
+   load_buffer_t load_buffer_head;
 
    int                         head = 0, tail = 0;
    int                         head_n = 0, tail_n = 0;
@@ -104,15 +113,15 @@ module memory_functional_unit
          o_data <= 'b0;
          o_address <= address.computed_address;
          o_valid <= 'b1;
-      end else if (head_buffer.valid & head_buffer.data_ready &
-          head_buffer.addr_ready & head_buffer.committed) begin
-         o_rsv_id <= head_buffer.rob_id;
-         o_opcode <= head_buffer.opcode;
-         o_data <= head_buffer.data;
-         o_address <= head_buffer.address;
+      end else if (store_buffer_head.valid & store_buffer_head.data_ready &
+                   store_buffer_head.addr_ready & store_buffer_head.committed) begin
+         o_rsv_id <= store_buffer_head.rob_id;
+         o_opcode <= store_buffer_head.opcode;
+         o_data <= store_buffer_head.data;
+         o_address <= store_buffer_head.address;
          o_valid <= 'b1;
       end
-   end // always_comb
+   end
 
    logic [STORE_BUFFER_SIZE-1:0] load_forwarding_v;
    logic                         o_cdb_v [STORE_BUFFER_SIZE:0];
@@ -156,21 +165,13 @@ module memory_functional_unit
    always_comb begin
       if (address_store) begin
          address_ready <= 'b1;
-      end else if (address_valid &&
-                   (address.opcode == I_LOAD ||
-                    address.opcode == I_LOADB ||
-                    address.opcode == I_LOADR ||
-                    address.opcode == I_LOADT ||
-                    address.opcode == I_LOADTB ||
-                    address.opcode == I_INPUT)) begin
+      end else begin
          address_ready <= (load_bypassing & o_ready) |
                           (load_forwarding & o_cdb_ready);
-      end else begin
-         address_ready <= 'b0;
       end
    end
 
-   assign i_ready_storebuffer = (head_buffer.valid && (head == tail)) ? 'b0 : 'b1;
+   assign i_ready_storebuffer = (store_buffer_head.valid && (head == tail)) ? 'b0 : 'b1;
    assign i_ready = i_ready_preaddress & i_ready_storebuffer;
 
    logic store_buffer_push = 'b0;
@@ -191,7 +192,7 @@ module memory_functional_unit
 
    always_comb begin
       store_buffer_pop <= 'b0;
-      if ((o_valid && o_ready) || head_buffer.invalidate) begin
+      if ((o_valid && o_ready) || store_buffer_head.invalidate) begin
          case (o_opcode)
            I_STORE, I_STOREB, I_STORER, I_STORET, I_STORETB,
 //           I_STOREF, I_STOREBF, I_STORERF,
@@ -229,12 +230,12 @@ module memory_functional_unit
    always_ff @(posedge clk) begin
       if (nrst) begin
          head <= head_n;
-         head_buffer <= store_buffer[head_n];
+         store_buffer_head <= store_buffer[head_n];
          tail <= tail_n;
          store_buffer <= store_buffer_n;
       end else begin
          head <= 0;
-         head_buffer <= 'b0;
+         store_buffer_head <= 'b0;
          tail <= 0;
          store_buffer <= 'b0;
       end
