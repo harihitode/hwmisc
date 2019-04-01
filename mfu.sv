@@ -89,6 +89,10 @@ module memory_functional_unit
    logic                       load_bypassing = 'b0;
    logic [STORE_BUFFER_SIZE-1:0] load_bypassing_vec = 'b0;
    logic                         load_forwarding = 'b0;
+   logic                         load_buffer_valid = 'b0;
+   wire                          load_buffer_ready;
+   wire                          load_buffer_head_valid;
+   logic                         load_buffer_head_ready = 'b0;
 
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer = 'b0;
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer_n = 'b0;
@@ -99,22 +103,18 @@ module memory_functional_unit
       o_address <= 'b0;
       o_valid <= 'b0;
       o_opcode <= 'b0;
-      // priority is STORE > LOAD
-      if (address_valid &&
-          load_bypassing &&
-          (address.opcode == I_LOAD ||
-           address.opcode == I_LOADB ||
-           address.opcode == I_LOADR ||
-           address.opcode == I_LOADT ||
-           address.opcode == I_LOADTB ||
-           address.opcode == I_INPUT)) begin
-         o_rsv_id <= address.rob_id;
-         o_opcode <= address.opcode;
+      // priority is STORE < LOAD
+      if (load_buffer_head_valid &
+          !load_buffer_head.forward) begin
+         o_rsv_id <= load_buffer_head.rob_id;
+         o_opcode <= load_buffer_head.opcode;
          o_data <= 'b0;
-         o_address <= address.computed_address;
+         o_address <= load_buffer_head.address;
          o_valid <= 'b1;
-      end else if (store_buffer_head.valid & store_buffer_head.data_ready &
-                   store_buffer_head.addr_ready & store_buffer_head.committed) begin
+      end else if (store_buffer_head.valid &
+                   store_buffer_head.data_ready &
+                   store_buffer_head.addr_ready &
+                   store_buffer_head.committed) begin
          o_rsv_id <= store_buffer_head.rob_id;
          o_opcode <= store_buffer_head.opcode;
          o_data <= store_buffer_head.data;
@@ -123,13 +123,41 @@ module memory_functional_unit
       end
    end
 
+   always_comb begin
+      if (address_valid & load_bypassing) begin
+         load_buffer_valid <= 'b1;
+      end else begin
+         load_buffer_valid <= 'b0;
+      end
+   end
+
    logic [STORE_BUFFER_SIZE-1:0] load_forwarding_v;
-   logic                         o_cdb_v [STORE_BUFFER_SIZE:0];
+   logic [DATA_W-1:0]            load_forwarding_data_v [STORE_BUFFER_SIZE:0];
+
+   fifo
+     #(.FIFO_DEPTH_W(1),
+       .DATA_W(RSV_ID_W+INSTR_W+DATA_W+1+DATA_W))
+   load_buffer
+     (
+      .clk(clk),
+      .a_data({address.rob_id,
+               address.opcode,
+               address.computed_address,
+               load_forwarding,
+               load_forwarding_data_v[STORE_BUFFER_SIZE]
+               }),
+      .a_valid(load_buffer_valid),
+      .a_ready(load_buffer_ready),
+      .b_data(load_buffer_head),
+      .b_valid(load_buffer_head_valid),
+      .b_ready(load_buffer_head_ready),
+      .nrst(nrst)
+      );
 
    always_comb begin
       load_forwarding <= |load_forwarding_v;
-      o_cdb_valid <= |load_forwarding_v;
-      o_cdb <= o_cdb_v[STORE_BUFFER_SIZE];
+      o_cdb_valid <= load_buffer_head.forward;
+      o_cdb <= {load_buffer_head.rob_id, load_buffer_head.data};
    end
 
    generate for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
@@ -140,10 +168,10 @@ module memory_functional_unit
              store_buffer[i].data_ready &&
              !store_buffer[i].override) begin
             load_forwarding_v[i] <= 'b1;
-            o_cdb_v[i+1] <= {address.rob_id, store_buffer[i].data};
+            load_forwarding_data_v[i+1] <= store_buffer[i].data;
          end else begin
             load_forwarding_v[i] <= 'b0;
-            o_cdb_v[i+1] <= o_cdb_v[i];
+            load_forwarding_data_v[i+1] <= load_forwarding_data_v[i];
          end
       end
    end endgenerate
@@ -161,13 +189,19 @@ module memory_functional_unit
       endcase
    end
 
-   // for critical path
+   always_comb begin
+      if (load_buffer_head.forward) begin
+         load_buffer_head_ready <= o_cdb_ready;
+      end else begin
+         load_buffer_head_ready <= o_ready;
+      end
+   end
+
    always_comb begin
       if (address_store) begin
          address_ready <= 'b1;
       end else begin
-         address_ready <= (load_bypassing & o_ready) |
-                          (load_forwarding & o_cdb_ready);
+         address_ready <= load_buffer_valid & load_buffer_ready;
       end
    end
 
