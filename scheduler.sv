@@ -176,7 +176,7 @@ module scheduler
    end
 
    always_comb begin
-      if (s_cram_rvalid & s_cram_rready) begin
+      if (s_cram_rvalid && s_cram_rready && addr_tail != data_tail) begin
          addr_buffer_data_push <= 'b1;
       end else begin
          addr_buffer_data_push <= 'b0;
