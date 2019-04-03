@@ -4,7 +4,7 @@
 package fcpu_pkg;
 
    localparam DATA_W = 32;
-   localparam CRAM_ADDR_W = 13;
+   localparam CRAM_ADDR_W = 14;
    localparam RSV_ID_W = 5;
    localparam REG_ADDR_W = 5;
    localparam PHT_ADDR_W = 18; // pattern history table
