@@ -8,7 +8,7 @@ module core
 
    // code ram {
    // Slave Interface Read Address Ports
-   output logic [3:0]          s_cram_arid,
+   output logic [0:0]          s_cram_arid,
    output logic [31:0]         s_cram_araddr,
    output logic [7:0]          s_cram_arlen,
    output logic [2:0]          s_cram_arsize,
@@ -22,7 +22,7 @@ module core
 
    // Slave Interface Read Data Ports
    output logic                s_cram_rready,
-   input logic [3:0]           s_cram_rid,
+   input logic [0:0]           s_cram_rid,
    input logic [31:0]          s_cram_rdata,
    input logic [1:0]           s_cram_rresp,
    input logic                 s_cram_rlast,
