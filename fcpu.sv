@@ -120,7 +120,7 @@ module fcpu
    );
 
    // cram addr ports
-   wire [3:0]                              s_mmu_cram_arid;
+   wire [0:0]                              s_mmu_cram_arid;
    wire [31:0]                             s_mmu_cram_araddr;
    wire [7:0]                              s_mmu_cram_arlen;
    wire [2:0]                              s_mmu_cram_arsize;
@@ -133,7 +133,7 @@ module fcpu
    wire                                    s_mmu_cram_arready;
 
    // cram data ports
-   wire [3:0]                              s_mmu_cram_rid;
+   wire [0:0]                              s_mmu_cram_rid;
    wire [31:0]                             s_mmu_cram_rdata;
    wire [1:0]                              s_mmu_cram_rresp;
    wire                                    s_mmu_cram_rlast;
@@ -141,7 +141,7 @@ module fcpu
    wire                                    s_mmu_cram_rready;
 
    // cram addr ports
-   wire [3:0]                              s_core_cram_arid;
+   wire [0:0]                              s_core_cram_arid;
    wire [31:0]                             s_core_cram_araddr;
    wire [7:0]                              s_core_cram_arlen;
    wire [2:0]                              s_core_cram_arsize;
@@ -154,7 +154,7 @@ module fcpu
    wire                                    s_core_cram_arready;
 
    // cram data ports
-   wire [3:0]                              s_core_cram_rid;
+   wire [0:0]                              s_core_cram_rid;
    wire [31:0]                             s_core_cram_rdata;
    wire [1:0]                              s_core_cram_rresp;
    wire                                    s_core_cram_rlast;
@@ -198,127 +198,86 @@ module fcpu
       .*
       );
 
-   axi_interconnect_0 bus
+   axi_crossbar_0 bus
      (
-      .INTERCONNECT_ACLK(clk),
-      .INTERCONNECT_ARESETN(sys_rst_n),
-      .S00_AXI_ARESET_OUT_N(),
-      .S00_AXI_ACLK(clk),
-      .S00_AXI_AWID('b0),
-      .S00_AXI_AWADDR('b0),
-      .S00_AXI_AWLEN('b0),
-      .S00_AXI_AWSIZE('b0),
-      .S00_AXI_AWBURST('b1),
-      .S00_AXI_AWLOCK('b0),
-      .S00_AXI_AWCACHE('b0),
-      .S00_AXI_AWPROT('b0),
-      .S00_AXI_AWQOS('b0),
-      .S00_AXI_AWVALID('b0),
-      .S00_AXI_AWREADY(),
-      .S00_AXI_WDATA('b0),
-      .S00_AXI_WSTRB('b0),
-      .S00_AXI_WLAST('b0),
-      .S00_AXI_WVALID('b0),
-      .S00_AXI_WREADY(),
-      .S00_AXI_BID(),
-      .S00_AXI_BRESP(),
-      .S00_AXI_BVALID(),
-      .S00_AXI_BREADY('b0),
-      .S00_AXI_ARID(s_core_cram_arid),
-      .S00_AXI_ARADDR(s_core_cram_araddr),
-      .S00_AXI_ARLEN(s_core_cram_arlen),
-      .S00_AXI_ARSIZE(s_core_cram_arsize),
-      .S00_AXI_ARBURST(s_core_cram_arburst),
-      .S00_AXI_ARLOCK(s_core_cram_arlock),
-      .S00_AXI_ARCACHE(s_core_cram_arcache),
-      .S00_AXI_ARPROT(s_core_cram_arprot),
-      .S00_AXI_ARQOS(s_core_cram_arqos),
-      .S00_AXI_ARVALID(s_core_cram_arvalid),
-      .S00_AXI_ARREADY(s_core_cram_arready),
-      .S00_AXI_RID(s_core_cram_rid),
-      .S00_AXI_RDATA(s_core_cram_rdata),
-      .S00_AXI_RRESP(s_core_cram_rresp),
-      .S00_AXI_RLAST(s_core_cram_rlast),
-      .S00_AXI_RVALID(s_core_cram_rvalid),
-      .S00_AXI_RREADY(s_core_cram_rready),
-      .S01_AXI_ARESET_OUT_N(),
-      .S01_AXI_ACLK(clk),
-      .S01_AXI_AWID('b0),
-      .S01_AXI_AWADDR('b0),
-      .S01_AXI_AWLEN('b0),
-      .S01_AXI_AWSIZE('b0),
-      .S01_AXI_AWBURST('b1),
-      .S01_AXI_AWLOCK('b0),
-      .S01_AXI_AWCACHE('b0),
-      .S01_AXI_AWPROT('b0),
-      .S01_AXI_AWQOS('b0),
-      .S01_AXI_AWVALID('b0),
-      .S01_AXI_AWREADY(),
-      .S01_AXI_WDATA('b0),
-      .S01_AXI_WSTRB('b0),
-      .S01_AXI_WLAST('b0),
-      .S01_AXI_WVALID('b0),
-      .S01_AXI_WREADY(),
-      .S01_AXI_BID(),
-      .S01_AXI_BRESP(),
-      .S01_AXI_BVALID(),
-      .S01_AXI_BREADY('b0),
-      .S01_AXI_ARID(s_mmu_cram_arid),
-      .S01_AXI_ARADDR(s_mmu_cram_araddr),
-      .S01_AXI_ARLEN(s_mmu_cram_arlen),
-      .S01_AXI_ARSIZE(s_mmu_cram_arsize),
-      .S01_AXI_ARBURST(s_mmu_cram_arburst),
-      .S01_AXI_ARLOCK(s_mmu_cram_arlock),
-      .S01_AXI_ARCACHE(s_mmu_cram_arcache),
-      .S01_AXI_ARPROT(s_mmu_cram_arprot),
-      .S01_AXI_ARQOS(s_mmu_cram_arqos),
-      .S01_AXI_ARVALID(s_mmu_cram_arvalid),
-      .S01_AXI_ARREADY(s_mmu_cram_arready),
-      .S01_AXI_RID(s_mmu_cram_rid),
-      .S01_AXI_RDATA(s_mmu_cram_rdata),
-      .S01_AXI_RRESP(s_mmu_cram_rresp),
-      .S01_AXI_RLAST(s_mmu_cram_rlast),
-      .S01_AXI_RVALID(s_mmu_cram_rvalid),
-      .S01_AXI_RREADY(s_mmu_cram_rready),
-      .M00_AXI_ARESET_OUT_N(),
-      .M00_AXI_ACLK(clk),
-      .M00_AXI_AWID(),
-      .M00_AXI_AWADDR(),
-      .M00_AXI_AWLEN(),
-      .M00_AXI_AWSIZE(),
-      .M00_AXI_AWBURST(),
-      .M00_AXI_AWLOCK(),
-      .M00_AXI_AWCACHE(),
-      .M00_AXI_AWPROT(),
-      .M00_AXI_AWQOS(),
-      .M00_AXI_AWVALID(),
-      .M00_AXI_AWREADY('b0),
-      .M00_AXI_WDATA(),
-      .M00_AXI_WSTRB(),
-      .M00_AXI_WLAST(),
-      .M00_AXI_WVALID(),
-      .M00_AXI_WREADY('b0),
-      .M00_AXI_BID('b0),
-      .M00_AXI_BRESP('b0),
-      .M00_AXI_BVALID('b0),
-      .M00_AXI_BREADY(),
-      .M00_AXI_ARID(s_cram_arid),
-      .M00_AXI_ARADDR(s_cram_araddr),
-      .M00_AXI_ARLEN(s_cram_arlen),
-      .M00_AXI_ARSIZE(s_cram_arsize),
-      .M00_AXI_ARBURST(s_cram_arburst),
-      .M00_AXI_ARCACHE(s_cram_arcache),
-      .M00_AXI_ARLOCK(s_cram_arlock),
-      .M00_AXI_ARPROT(s_cram_arprot),
-      .M00_AXI_ARQOS(s_cram_arqos),
-      .M00_AXI_ARVALID(s_cram_arvalid),
-      .M00_AXI_ARREADY(s_cram_arready),
-      .M00_AXI_RID(s_cram_rid),
-      .M00_AXI_RDATA(s_cram_rdata),
-      .M00_AXI_RRESP(s_cram_rresp),
-      .M00_AXI_RLAST(s_cram_rlast),
-      .M00_AXI_RVALID(s_cram_rvalid),
-      .M00_AXI_RREADY(s_cram_rready)
+      .aclk(clk),
+      .aresetn(sys_rst_n),
+      .s_axi_awid('0),
+      .s_axi_awaddr('0),
+      .s_axi_awlen('0),
+      .s_axi_awsize('0),
+      .s_axi_awburst('0),
+      .s_axi_awlock('0),
+      .s_axi_awcache('0),
+      .s_axi_awprot('0),
+      .s_axi_awqos('0),
+      .s_axi_awvalid('0),
+      .s_axi_awready(),
+      .s_axi_wdata('0),
+      .s_axi_wstrb('0),
+      .s_axi_wlast('0),
+      .s_axi_wvalid('0),
+      .s_axi_wready(),
+      .s_axi_bid(),
+      .s_axi_bresp(),
+      .s_axi_bvalid(),
+      .s_axi_bready('1),
+      .s_axi_arid({s_core_cram_arid, s_mmu_cram_arid}),
+      .s_axi_araddr({s_core_cram_araddr, s_mmu_cram_araddr}),
+      .s_axi_arlen({s_core_cram_arlen, s_mmu_cram_arlen}),
+      .s_axi_arsize({s_core_cram_arsize, s_mmu_cram_arsize}),
+      .s_axi_arburst({s_core_cram_arburst, s_mmu_cram_arburst}),
+      .s_axi_arlock({s_core_cram_arlock, s_mmu_cram_arlock}),
+      .s_axi_arcache({s_core_cram_arcache, s_mmu_cram_arcache}),
+      .s_axi_arprot({s_core_cram_arprot, s_mmu_cram_arprot}),
+      .s_axi_arqos({s_core_cram_arqos, s_mmu_cram_arqos}),
+      .s_axi_arvalid({s_core_cram_arvalid, s_mmu_cram_arvalid}),
+      .s_axi_arready({s_core_cram_arready, s_mmu_cram_arready}),
+      .s_axi_rid({s_core_cram_rid, s_mmu_cram_rid}),
+      .s_axi_rdata({s_core_cram_rdata, s_mmu_cram_rdata}),
+      .s_axi_rresp({s_core_cram_rresp, s_mmu_cram_rresp}),
+      .s_axi_rlast({s_core_cram_rlast, s_mmu_cram_rlast}),
+      .s_axi_rvalid({s_core_cram_rvalid, s_mmu_cram_rvalid}),
+      .s_axi_rready({s_core_cram_rready, s_mmu_cram_rready}),
+
+      .m_axi_awid(),
+      .m_axi_awaddr(),
+      .m_axi_awlen(),
+      .m_axi_awsize(),
+      .m_axi_awburst(),
+      .m_axi_awlock(),
+      .m_axi_awcache(),
+      .m_axi_awprot(),
+      .m_axi_awqos(),
+      .m_axi_awvalid(),
+      .m_axi_awready('0),
+      .m_axi_wdata(),
+      .m_axi_wstrb(),
+      .m_axi_wlast(),
+      .m_axi_wvalid(),
+      .m_axi_wready('0),
+      .m_axi_bid('0),
+      .m_axi_bresp('0),
+      .m_axi_bvalid('0),
+      .m_axi_bready(),
+
+      .m_axi_arid(s_cram_arid),
+      .m_axi_araddr(s_cram_araddr),
+      .m_axi_arlen(s_cram_arlen),
+      .m_axi_arsize(s_cram_arsize),
+      .m_axi_arburst(s_cram_arburst),
+      .m_axi_arcache(s_cram_arcache),
+      .m_axi_arlock(s_cram_arlock),
+      .m_axi_arprot(s_cram_arprot),
+      .m_axi_arqos(s_cram_arqos),
+      .m_axi_arvalid(s_cram_arvalid),
+      .m_axi_arready(s_cram_arready),
+      .m_axi_rid(s_cram_rid),
+      .m_axi_rdata(s_cram_rdata),
+      .m_axi_rresp(s_cram_rresp),
+      .m_axi_rlast(s_cram_rlast),
+      .m_axi_rvalid(s_cram_rvalid),
+      .m_axi_rready(s_cram_rready)
       );
 
    memory_management_unit mmu_inst
