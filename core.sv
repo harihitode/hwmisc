@@ -105,6 +105,7 @@ module core
 
    // from rob to reg
    logic                                            reg_we = 'b0;
+   logic                                            reg_commit_invalidate = 'b0;
    wire [REG_ADDR_W-1:0]                            reg_wr_addr;
    wire [RSV_ID_W-1:0]                              reg_wr_rsv_addr;
    wire [DATA_W-1:0]                                reg_wr_data;
@@ -362,11 +363,6 @@ module core
    assign reg_wr_data = commit_data.content;
 
    always_comb begin
-      store_commit_id <= commit_data.station_id;
-      store_commit_invalidate <= commit_data.invalidate;
-   end
-
-   always_comb begin
       sch_address_valid <= 'b0;
       sch_address <= 'b0;
       if (pred_miss) begin
@@ -400,6 +396,9 @@ module core
    end
 
    always_comb comitter : begin
+      store_commit_id <= commit_data.station_id;
+      store_commit_invalidate <= commit_data.invalidate;
+      reg_commit_invalidate <= commit_data.invalidate;
       if (commit_valid && commit_ready) begin
          reg_we <= 'b0;
          store_commit_valid <= 'b0;
@@ -516,11 +515,11 @@ module core
    reg_inst
      (
       .clk(clk),
-      .pred_miss(pred_miss),
       .rsv(reg_reserve),
       .rob_id(rob_id),
 
       .we(reg_we),
+      .we_invalidate(reg_commit_invalidate),
       .wrAddr(reg_wr_addr),
       .wrQueAddr(reg_wr_rsv_addr),
       .wrData(reg_wr_data),
@@ -529,7 +528,6 @@ module core
       .rdData(reg_rdData),
       .rdData_filled(reg_filled),
 
-      .clear(pred_miss),
       .nrst(nrst)
       );
 

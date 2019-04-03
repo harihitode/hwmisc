@@ -6,11 +6,11 @@ module register_file
   #(parameter N_RD_PORTS = 3)
   (
    input logic                                        clk,
-   input logic                                        pred_miss,
    input logic                                        rsv, // reserve
    input logic [RSV_ID_W-1:0]                         rob_id,
    // from rob to reg
    input logic                                        we,
+   input logic                                        we_invalidate,
    input logic [RSV_ID_W-1:0]                         wrQueAddr,
    input logic [REG_ADDR_W-1:0]                       wrAddr,
    input logic [DATA_W-1:0]                           wrData,
@@ -19,7 +19,6 @@ module register_file
    output logic [N_RD_PORTS-1:0][DATA_W+RSV_ID_W-1:0] rdData,
    output logic [N_RD_PORTS-1:0]                      rdData_filled,
 
-   input logic                                        clear,
    input logic                                        nrst
    );
 
@@ -47,7 +46,7 @@ module register_file
 
    assign wr_reg_id = wrAddr;
    assign wr_reg_rsv_id = wrQueAddr;
-   assign wr_reg_data = (we) ? wrData : reg_file[$unsigned(wr_reg_id)];
+   assign wr_reg_data = (we && ~we_invalidate) ? wrData : reg_file[$unsigned(wr_reg_id)];
 
    generate begin for (genvar i = 0; i < 2**REG_ADDR_W; i++) begin
       always_comb begin
@@ -68,13 +67,8 @@ module register_file
    always_ff @(posedge clk) begin
       if (nrst) begin
          reg_file[$unsigned(wr_reg_id)] <= wr_reg_data;
-         if (pred_miss) begin
-            query <= '0;
-            filled <= '1;
-         end else begin
-            filled <= filled_n;
-            query <= query_n;
-         end
+         query <= query_n;
+         filled <= filled_n;
       end else begin
          reg_file <= '0;
          query <= '0;
