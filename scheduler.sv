@@ -17,7 +17,7 @@ module scheduler
 
    // cram
    // Slave Interface Read Address Ports
-   output logic [3:0]             s_cram_arid,
+   output logic [0:0]             s_cram_arid,
    output logic [31:0]            s_cram_araddr,
    output logic [7:0]             s_cram_arlen,
    output logic [2:0]             s_cram_arsize,
@@ -31,7 +31,7 @@ module scheduler
 
    // Slave Interface Read Data Ports
    output logic                   s_cram_rready,
-   input logic [3:0]              s_cram_rid,
+   input logic [0:0]              s_cram_rid,
    input logic [31:0]             s_cram_rdata,
    input logic [1:0]              s_cram_rresp,
    input logic                    s_cram_rlast,
@@ -51,7 +51,7 @@ module scheduler
    // tekitou
    localparam int                 ADDR_BUFFER_SIZE = 4;
 
-   assign s_cram_arid = 'b0;
+   assign s_cram_arid = 'b1;
    assign s_cram_arlen = 'h0;
    assign s_cram_arsize = 'h2;
    assign s_cram_arburst = 'h1;
@@ -83,7 +83,6 @@ module scheduler
    logic                      addr_buffer_addr_push = 'b0;
    logic                      addr_buffer_data_push = 'b0;
    logic                      addr_buffer_pop = 'b0;
-   logic                      address_valid_d = 'b0;
 
    always_comb head_countup : begin
       if (addr_buffer_pop) begin
@@ -141,12 +140,8 @@ module scheduler
                          ) ? 'b1 : 'b0;
 
    always_comb begin
-      if (address_valid) begin
-         s_cram_araddr_n <= address;
-      end else if (!ce) begin
+      if (!ce) begin
          s_cram_araddr_n <= s_cram_araddr;
-      end else if (branch_flag && take_flag) begin
-         s_cram_araddr_n <= s_cram_rdata[14:0];
       end else if (s_cram_arvalid && s_cram_arready) begin
          s_cram_araddr_n <= s_cram_araddr + NEXT_PC_WIDTH;
       end else begin
@@ -211,10 +206,12 @@ module scheduler
    always_comb begin
       if (!nrst) begin
          s_cram_araddr <= 'b0;
-      end else if (address_valid_d) begin
-         s_cram_araddr <= s_cram_araddr_i;
+      end else if (address_valid) begin
+         s_cram_araddr <= address;
       end else if (!ce) begin
          s_cram_araddr <= s_cram_araddr_d;
+      end else if (branch_flag && take_flag) begin
+         s_cram_araddr <= s_cram_rdata[14:0];
       end else if (addr_buffer[$unsigned(head)].valid &&
                    s_cram_rvalid &&
                    s_cram_rdata[DATA_W-1:DATA_W-INSTR_W] == I_JMP) begin
@@ -231,14 +228,12 @@ module scheduler
          head <= head_n;
          addr_tail <= addr_tail_n;
          data_tail <= data_tail_n;
-         address_valid_d <= address_valid;
       end else begin
          s_cram_araddr_i <= 'b0;
          s_cram_araddr_d <= 'b0;
          head <= 0;
          addr_tail <= 0;
          data_tail <= 0;
-         address_valid_d <= 'b0;
       end
    end
 
