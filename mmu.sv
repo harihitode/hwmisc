@@ -103,7 +103,7 @@ module memory_management_unit
    // }
    // CRAM {
    // cram addr ports
-   output logic [ID_WIDTH-1:0]             cram_arid,
+   output logic [0:0]                      cram_arid,
    output logic [31:0]                     cram_araddr,
    output logic [7:0]                      cram_arlen,
    output logic [2:0]                      cram_arsize,
@@ -116,7 +116,7 @@ module memory_management_unit
    input logic                             cram_arready,
    // cram data ports
    output logic                            cram_rready,
-   input logic [ID_WIDTH-1:0]              cram_rid,
+   input logic [0:0]                       cram_rid,
    input logic [31:0]                      cram_rdata,
    input logic [1:0]                       cram_rresp,
    input logic                             cram_rlast,
@@ -232,13 +232,13 @@ module memory_management_unit
    // }
 
    // static signals for CRAM {
-   assign cram_arid = 4'b0;
+   assign cram_arid = 'b0;
    assign cram_arprot = 'b0;
    assign cram_arlock = 'b0;
    assign cram_arcache = 'h0;
    assign cram_arqos = 'b0;
    assign cram_arburst = 'b1;
-   assign cram_arlen = ($size(cram_arlen))'($unsigned((2**BURST_W)-1));
+   assign cram_arlen = 'b0;
    assign cram_arsize = 3'h2; // 2*2 = 4bytes(32bits)
 
    always_comb begin
