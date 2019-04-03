@@ -39,8 +39,8 @@ module branch_unit
    wire [DATA_W-1:0]                                                a2;
    wire [DATA_W-1:0]                                                dst;
 
-   wire [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0]                  calc_n;
-   wire [RSV_ID_W+INSTR_W+N_OPERANDS*(DATA_W)-1:0]                  calc;
+   wire [RSV_ID_W+INSTR_W+N_OPERANDS*DATA_W-1:0]                    calc_n;
+   wire [RSV_ID_W+INSTR_W+N_OPERANDS*DATA_W-1:0]                    calc;
    // inner signals
    wire                                                             calc_valid_n;
    wire                                                             calc_valid;
