@@ -73,7 +73,6 @@ module scheduler
 
    logic [31:0]               s_cram_araddr_n;
    logic [31:0]               s_cram_araddr_i = 'b0;
-   logic [31:0]               s_cram_araddr_d = 'b0;
 
    address_buffer_t [ADDR_BUFFER_SIZE-1:0] addr_buffer = 'b0;
 
@@ -208,8 +207,6 @@ module scheduler
          s_cram_araddr <= 'b0;
       end else if (address_valid) begin
          s_cram_araddr <= address;
-      end else if (!ce) begin
-         s_cram_araddr <= s_cram_araddr_d;
       end else if (branch_flag && take_flag) begin
          s_cram_araddr <= s_cram_rdata[14:0];
       end else if (addr_buffer[$unsigned(head)].valid &&
@@ -224,13 +221,11 @@ module scheduler
    always_ff @(posedge clk) begin
       if (nrst) begin
          s_cram_araddr_i <= s_cram_araddr_n;
-         s_cram_araddr_d <= s_cram_araddr;
          head <= head_n;
          addr_tail <= addr_tail_n;
          data_tail <= data_tail_n;
       end else begin
          s_cram_araddr_i <= 'b0;
-         s_cram_araddr_d <= 'b0;
          head <= 0;
          addr_tail <= 0;
          data_tail <= 0;
