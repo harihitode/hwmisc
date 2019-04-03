@@ -119,7 +119,7 @@ module memory_functional_unit
          o_opcode <= store_buffer_head.opcode;
          o_data <= store_buffer_head.data;
          o_address <= store_buffer_head.address;
-         o_valid <= 'b1;
+         o_valid <= ~store_buffer_head.invalidate;
       end
    end
 
