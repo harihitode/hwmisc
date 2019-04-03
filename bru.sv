@@ -71,7 +71,7 @@ module branch_unit
         I_BLT :
           true_conditions[calc[3*DATA_W+INSTR_W+:RSV_ID_W]] <= ($signed(a1) < $signed(a2)) ? 'b1 : 'b0;
         I_BEQ :
-          true_conditions[calc[3*DATA_W+INSTR_W+:RSV_ID_W]] <= (a1 == a2) ? 'b1 : 'b0;
+          true_conditions[calc[3*DATA_W+INSTR_W+:RSV_ID_W]] <= ($signed(a1) == $signed(a2)) ? 'b1 : 'b0;
       endcase
    end
 
