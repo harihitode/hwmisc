@@ -313,9 +313,9 @@ module core
       endcase
    end
 
-   logic [N_UNITS-1:0] units_cdb_ready_v [N_UNITS:0];
-   logic [N_UNITS-1:0] units_cdb_exception_v [N_UNITS:0];
-   logic [CDB_W-1:0]   cdb_v [N_UNITS:0];
+   logic [N_UNITS-1:0] units_cdb_ready_v [N_UNITS:0] = '{default:'b0};
+   logic [N_UNITS-1:0] units_cdb_exception_v [N_UNITS:0] = '{default:'b0};
+   logic [CDB_W-1:0]   cdb_v [N_UNITS:0] = '{default:'b0};
    generate for (genvar i = 0; i < N_UNITS; i++) begin
       always_comb begin
          if (units_cdb_valid[i]) begin
