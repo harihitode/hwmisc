@@ -232,16 +232,8 @@ module global_mem
    always_ff @(posedge clk) begin
       automatic logic pop_awaddr = '0;
       automatic int bid_wait_cycles = 0;
-      if (!nrst) begin
-         awaddr_fifo_wrAddr <= '0;
-         awaddr_fifo_rdAddr <= '0;
-         st_write <= get_address;
-         awaddr_fifo_nempty <= '0;
-         awaddr_fifo_full <= '0;
-         awaddr_fifo_pop <= '0;
-         awid_fifo_rdAddr <= '0;
-         awid_fifo_wrAddr <= '0;
-      end else begin
+      if (nrst) begin
+
          wready <= '1;
 
          wdata_vec <= {wdata, wdata_vec[$high(wdata_vec):1]};
@@ -325,7 +317,16 @@ module global_mem
          end else if (!awaddr_fifo_push && pop_awaddr && awaddr_fifo_rdAddr+1 == awaddr_fifo_wrAddr) begin
             awaddr_fifo_nempty <= 'b0;
          end
-      end // else: !if(!nrst)
-   end // always_ff @ (posedge clk)
+      end else begin
+         awaddr_fifo_wrAddr <= '0;
+         awaddr_fifo_rdAddr <= '0;
+         st_write <= get_address;
+         awaddr_fifo_nempty <= '0;
+         awaddr_fifo_full <= '0;
+         awaddr_fifo_pop <= '0;
+         awid_fifo_rdAddr <= '0;
+         awid_fifo_wrAddr <= '0;
+      end
+   end
    // }
 endmodule
