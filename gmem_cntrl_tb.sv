@@ -30,6 +30,24 @@ module gmem_cntrl_tb ();
    wire                                        atomic_rdData_v;
    wire [N_CU_STATIONS_W-1:0]                  atomic_sgntr;
 
+   initial begin
+      #100;
+      cu_valid <= 'b1;
+      cu_we <= '1;
+      cu_rnw <= 'b0;
+      cu_rqst_addr <= 'h1004;
+      cu_wrData <= 'hcafecafe;
+      @(posedge clk);
+      wait (cu_valid && cu_ready);
+      cu_valid <= 'b1;
+      cu_we <= '0;
+      cu_rnw <= 'b1;
+      cu_rqst_addr <= 'h1004;
+      @(posedge clk);
+      wait (cu_valid && cu_ready);
+      cu_valid <= 'b0;
+   end
+
    // Read Address Channel
    wire [GMEM_ADDR_W-1:0]                      axi_araddr;
    wire                                        axi_arvalid;
