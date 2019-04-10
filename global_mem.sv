@@ -239,8 +239,7 @@ module global_mem
          wdata_vec <= {wdata, wdata_vec[$high(wdata_vec):1]};
          wvalid_vec <= {wvalid, wvalid_vec[$high(wvalid_vec):1]};
          wstrb_vec <= {wstrb, wstrb_vec[$high(wstrb_vec):1]};
-         wr_addr_offset_vec <= {wr_addr_offset, wr_addr_offset,
-                                wr_addr_offset_vec[$high(wr_addr_offset_vec)-1:1]};
+         wr_addr_offset_vec <= {wr_addr_offset, wr_addr_offset_vec[$high(wr_addr_offset_vec):1]};
          wlast_vec[$high(wlast_vec)-1:0] <= wlast_vec[$high(wlast_vec):1];
          wlast_vec[$high(wlast_vec)] <= 'b0;
 
@@ -283,7 +282,7 @@ module global_mem
            end
            write_data : begin
               if (wvalid && wready) begin
-                 wr_addr <= wr_addr + 8;
+                 wr_addr <= wr_addr + 2**(2+GMEM_N_BANK_W);
                  if (wlast) begin
                     if (awaddr_fifo_nempty) begin
                        awaddr_fifo_pop <= 'b1;
