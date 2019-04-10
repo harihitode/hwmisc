@@ -841,6 +841,7 @@ module gmem_cntrl
                     st_rcv_n[i] <= requesting_atomic;
                  end else begin
                     st_rcv_n[i] <= get_addr;
+                    rcv_gmem_addr_n[i] <= 'b0;
                     rcv_idle_n[i] <= 'b1;
                     rcv_rd_done_n[i] <= 'b1;
                  end
@@ -876,6 +877,7 @@ module gmem_cntrl
            write_cache : begin
               if (cache_we && !rcv_will_write_d0[i]) begin
                  st_rcv_n[i] <= get_addr;
+                 rcv_gmem_addr_n[i] <= 'b0;
                  rcv_idle_n[i] <= 'b1;
               end
            end
