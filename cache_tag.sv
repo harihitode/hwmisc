@@ -117,7 +117,7 @@ module cache_tag
    logic                                        validate_page_n = '0;
 
    logic                                        page_v_tmanager_ack = '0;
-   logic                                        clear_tag_tmanager;
+   logic                                        clear_tag_tmanager = '0;
    logic                                        clear_tag_tmanager_n;
 
    logic                                        alloc_tag = '0;
@@ -993,14 +993,14 @@ module cache_tag
    endgenerate
 
    generate begin for (genvar i = 0; i < N_RECEIVERS; i++) begin
-      always_ff @(posedge clk) begin
+      always_comb begin
          rcv_tag_written_n[i] <= 'b0;
          rcv_tag_updated_n[i] <= 'b0;
-         if (rcv_gmem_addr[i][L+M+N-1:L+N] == wrAddr_tag) begin
-            if (we_tag && rcv_gmem_addr[i][GMEM_WORD_ADDR_W-1:L+M+N] == wrData_tag) begin
+         if (rcv_gmem_addr[i][M+L+N-1:N+L] == wrAddr_tag) begin
+            if (we_tag && rcv_gmem_addr[i][GMEM_WORD_ADDR_W-1:M+L+N] == wrData_tag) begin
                rcv_tag_written_n[i] <= 'b1;
             end
-            if (clear_tag || (we_tag && rcv_gmem_addr[i][GMEM_WORD_ADDR_W-1:L+M+N] != wrData_tag)) begin
+            if (clear_tag || (we_tag && rcv_gmem_addr[i][GMEM_WORD_ADDR_W-1:M+L+N] != wrData_tag)) begin
                rcv_tag_updated_n[i] <= 'b1;
             end
          end
