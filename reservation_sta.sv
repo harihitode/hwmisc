@@ -146,37 +146,25 @@ module reservation_station
       end
    end endgenerate
 
-   int delete_st_v [2**N_STATIONS_W:0] = '{default: 0};
-   generate for (genvar i = 0; i < 2**N_STATIONS_W; i++) delete_chk : begin
-      always_comb begin
+   always_comb begin
+      for (int i = 0; i < 2**N_STATIONS_W; i++) begin
+         delete_st <= i;
          if (station[i].valid && station[i].ordered &&
              (&station[i].filled)) begin
-            delete_st_v[i+1] <= $unsigned(i);
-         end else begin
-            delete_st_v[i+1] <= delete_st_v[i];
+            break;
          end
       end
-   end endgenerate
-   always_comb begin
-      delete_st <= delete_st_v[2**N_STATIONS_W];
    end
 
-   int empty_st_v [2**N_STATIONS_W:0] = '{default: 0};
-   logic [2**N_STATIONS_W-1:0] i_ready_v = 'b0;
-   generate for (genvar i = 0; i < 2**N_STATIONS_W; i++) ready_chk : begin
-      always_comb begin
+   always_comb begin
+      i_ready <= 'b0;
+      for (int i = 0; i < 2**N_STATIONS_W; i++) ready_chk : begin
          if (!station[i].valid) begin
-            empty_st_v[i+1] <= $unsigned(i);
-            i_ready_v[i] <= 'b1;
-         end else begin;
-            empty_st_v[i+1] <= empty_st_v[i];
-            i_ready_v[i] <= 'b0;
+            empty_st <= i;
+            i_ready <= 'b1;
+            break;
          end
       end
-   end endgenerate
-   always_comb begin
-      empty_st <= empty_st_v[2**N_STATIONS_W];
-      i_ready <= |i_ready_v;
    end
 
    always_ff @(posedge clk) update : begin
