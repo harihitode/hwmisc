@@ -87,12 +87,12 @@ module memory_functional_unit
    wire                        p_address_ready;
    logic                       address_store = 'b0;
    logic                       load_bypassing = 'b0;
-   logic [STORE_BUFFER_SIZE-1:0] load_bypassing_vec = 'b0;
-   logic                         load_forwarding = 'b0;
-   logic                         load_buffer_valid = 'b0;
-   wire                          load_buffer_ready;
-   wire                          load_buffer_head_valid;
-   logic                         load_buffer_head_ready = 'b0;
+   logic                       load_forwarding = 'b0;
+   logic [DATA_W-1:0]          load_forwarding_data = 'b0;
+   logic                       load_buffer_valid = 'b0;
+   wire                        load_buffer_ready;
+   wire                        load_buffer_head_valid;
+   logic                       load_buffer_head_ready = 'b0;
 
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer = 'b0;
    store_buffer_t [STORE_BUFFER_SIZE-1:0] store_buffer_n = 'b0;
@@ -131,9 +131,6 @@ module memory_functional_unit
       end
    end
 
-   logic [STORE_BUFFER_SIZE-1:0] load_forwarding_v;
-   logic [DATA_W-1:0]            load_forwarding_data_v [STORE_BUFFER_SIZE:0];
-
    fifo
      #(.FIFO_DEPTH_W(1),
        .DATA_W(RSV_ID_W+INSTR_W+DATA_W+1+DATA_W))
@@ -144,7 +141,7 @@ module memory_functional_unit
                address.opcode,
                address.computed_address,
                load_forwarding,
-               load_forwarding_data_v[STORE_BUFFER_SIZE]
+               load_forwarding_data
                }),
       .a_valid(load_buffer_valid),
       .a_ready(load_buffer_ready),
@@ -155,26 +152,25 @@ module memory_functional_unit
       );
 
    always_comb begin
-      load_forwarding <= |load_forwarding_v;
       o_cdb_valid <= load_buffer_head.forward;
       o_cdb <= {load_buffer_head.rob_id, load_buffer_head.data};
    end
 
-   generate for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
-      always_comb begin
+   always_comb begin
+      load_forwarding <= 'b0;
+      load_forwarding_data <= 'b0;
+      for (int i = 0; i < STORE_BUFFER_SIZE; i++) begin
          if (address_valid && !address_store &&
              address.computed_address == store_buffer[i].address &&
              address.computed_address != '1 &&
              store_buffer[i].data_ready &&
              !store_buffer[i].override) begin
-            load_forwarding_v[i] <= 'b1;
-            load_forwarding_data_v[i+1] <= store_buffer[i].data;
-         end else begin
-            load_forwarding_v[i] <= 'b0;
-            load_forwarding_data_v[i+1] <= load_forwarding_data_v[i];
+            load_forwarding <= 'b1;
+            load_forwarding_data <= store_buffer[i].data;
+            break;
          end
       end
-   end endgenerate
+   end
 
    always_comb begin
       case (address.opcode)
@@ -360,14 +356,15 @@ module memory_functional_unit
       .nrst(nrst)
       );
 
+   logic [STORE_BUFFER_SIZE-1:0] load_bypassing_v = 'b0;
    generate begin for (genvar i = 0; i < STORE_BUFFER_SIZE; i++) begin
       always_comb begin
          if (store_buffer[i].valid &&
              store_buffer[i].addr_ready &&
              address.computed_address == store_buffer[i].address) begin
-            load_bypassing_vec[i] <= 'b0;
+            load_bypassing_v[i] <= 'b0;
          end else begin
-            load_bypassing_vec[i] <= 'b1;
+            load_bypassing_v[i] <= 'b1;
          end
       end
    end end
@@ -375,7 +372,7 @@ module memory_functional_unit
 
    always_comb begin
       if (address_valid && !address_store) begin
-         load_bypassing <= &load_bypassing_vec;
+         load_bypassing <= &load_bypassing_v;
       end else begin
          load_bypassing <= 'b0;
       end
