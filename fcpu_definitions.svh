@@ -15,8 +15,7 @@ package fcpu_pkg;
    localparam CACHE_N_BANKS = 2**CACHE_N_BANKS_W;
    localparam GMEM_ADDR_W = 28;
    localparam GMEM_WORD_ADDR_W = GMEM_ADDR_W - 2;
-   // localparam GMEM_N_BANK_W = 2; // Bitwidth of the number of words of a single AXI data interface, i.e. the global memory git bus
-   localparam GMEM_N_BANK_W = 0;
+   localparam GMEM_N_BANK_W = 2; // Bitwidth of the number of words of a single AXI data interface, i.e. the global memory git bus
    localparam GMEM_N_BANK = 2**GMEM_N_BANK_W;
    localparam GMEM_DATA_W = GMEM_N_BANK * DATA_W;
    localparam BURST_WORDS_W = 4;
