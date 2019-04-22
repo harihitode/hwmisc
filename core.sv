@@ -63,13 +63,13 @@ module core
    localparam N_UNITS = 4;
    localparam N_REG_RD_PORTS = 3;
    localparam N_ROB_RD_PORTS = 6;
-   wire [CDB_W-1:0]            cdb;
-   wire                        cdb_exception;
+   logic [CDB_W-1:0]           cdb = 'b0;
+   logic                       cdb_exception = 'b0;
    wire                        cdb_valid;
    wire [N_UNITS-1:0][CDB_W-1:0] units_cdb;
    wire [N_UNITS-1:0]            units_cdb_valid;
    logic [N_UNITS-1:0]           units_cdb_exception = 'b0;
-   wire [N_UNITS-1:0]            units_cdb_ready;
+   logic [N_UNITS-1:0]           units_cdb_ready = 'b0;
 
    // ROB
    wire [RSV_ID_W-1:0]           rob_id;
@@ -313,25 +313,20 @@ module core
       endcase
    end
 
-   logic [N_UNITS-1:0] units_cdb_ready_v [N_UNITS:0] = '{default:'b0};
-   logic [N_UNITS-1:0] units_cdb_exception_v [N_UNITS:0] = '{default:'b0};
-   logic [CDB_W-1:0]   cdb_v [N_UNITS:0] = '{default:'b0};
-   generate for (genvar i = 0; i < N_UNITS; i++) begin
-      always_comb begin
+   always_comb begin
+      units_cdb_ready <= 'b0;
+      cdb <= 'b0;
+      cdb_exception <= 'b0;
+      for (int i = 0; i < N_UNITS; i++) begin
          if (units_cdb_valid[i]) begin
-            units_cdb_ready_v[i+1] <= ('b1 << $unsigned(i));
-            units_cdb_exception_v[i+1] <= units_cdb_exception[i];
-            cdb_v[i+1] <= units_cdb[i];
-         end else begin
-            units_cdb_ready_v[i+1] <= units_cdb_ready_v[i];
-            units_cdb_exception_v[i+1] <= units_cdb_exception_v[i];
-            cdb_v[i+1] <= cdb_v[i];
+            units_cdb_ready <= 'b0;
+            units_cdb_ready[i] <= 'b1;
+            cdb <= units_cdb[i];
+            cdb_exception <= units_cdb_exception[i];
+            break;
          end
       end
-   end endgenerate
-   assign units_cdb_ready = units_cdb_ready_v[N_UNITS];
-   assign cdb_exception = units_cdb_exception_v[N_UNITS];
-   assign cdb = cdb_v[N_UNITS];
+   end
 
    always_comb halt_check : begin
       if (!rob_ready || pred_miss) begin
