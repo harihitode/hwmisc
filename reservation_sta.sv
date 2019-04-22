@@ -59,13 +59,16 @@ module reservation_station
 
    // TODO
    logic [2**N_STATIONS_W-1:0] ordered_v = 'b0;
+   logic [2**N_STATIONS_W-1:0] ready_v = 'b0;
    generate for (genvar i = 0; i < 2**N_STATIONS_W; i++) begin
       always_comb begin
          ordered_v[i] <= station[i].valid ? ~i_ordered : 'b1;
+         ready_v[i] <= ~station[i].valid;
       end
    end endgenerate
    always_comb begin
       ordered <= &ordered_v;
+      i_ready <= |ready_v;
    end
 
    generate begin
@@ -147,7 +150,7 @@ module reservation_station
    end endgenerate
 
    always_comb begin
-      for (int i = 0; i < 2**N_STATIONS_W; i++) begin
+      for (int i = 0; i < 2**N_STATIONS_W; i++) delete_chk : begin
          delete_st <= i;
          if (station[i].valid && station[i].ordered &&
              (&station[i].filled)) begin
@@ -157,11 +160,9 @@ module reservation_station
    end
 
    always_comb begin
-      i_ready <= 'b0;
       for (int i = 0; i < 2**N_STATIONS_W; i++) ready_chk : begin
+         empty_st <= i;
          if (!station[i].valid) begin
-            empty_st <= i;
-            i_ready <= 'b1;
             break;
          end
       end
