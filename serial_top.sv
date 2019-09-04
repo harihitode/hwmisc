@@ -2,7 +2,7 @@
 
 module serial_top
   (
-   input logic sys_clk_i,
+   input logic CLK100MHZ,
    // serial ports
    input       uart_txd_in,
    output      uart_rxd_out
@@ -12,7 +12,7 @@ module serial_top
    logic       uart_txd_in_d, sysclk;
 
    // Gen GLOBAL CLK
-   IBUFG clk_buf (.I(sys_clk_i), .O(sysclk));
+   IBUFG clk_buf (.I(CLK100MHZ), .O(sysclk));
 
    // DFF for avoid meta-stable
    logic       uart_txd_in_dd = 'b1;
