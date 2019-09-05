@@ -9,15 +9,14 @@ module serial_top
    );
 
    // internal signals
-   logic       uart_txd_in_d, sysclk;
+   logic       uart_txd_in_d, uart_rxd_out_i, sysclk;
 
    // Gen GLOBAL CLK
    IBUFG clk_buf (.I(CLK100MHZ), .O(sysclk));
 
    // DFF for avoid meta-stable
-   logic       uart_txd_in_dd = 'b1;
-   IBUF rcv_buf (.I(uart_txd_in), .O(uart_txd_in_d));
-   always_ff @(posedge sysclk) uart_txd_in_dd <= uart_txd_in_d;
+   IBUF txd_in_buf (.I(uart_txd_in), .O(uart_txd_in_d));
+   OBUF rxd_out_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
 
    localparam I_BYTES = 1;
    localparam O_BYTES = 1;
@@ -40,8 +39,8 @@ module serial_top
    serial_if_inst
      (
       .clk(sysclk),
-      .uart_txd_in(uart_txd_in_dd),
-      .uart_rxd_out(uart_rxd_out),
+      .uart_txd_in(uart_txd_in_d),
+      .uart_rxd_out(uart_rxd_out_i),
       .nrst('b1),
       .*
       );
