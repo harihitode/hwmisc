@@ -1,6 +1,6 @@
 `timescale 1 ns / 1 ps
 
-module serial_top
+module serial_dram_top
   (
    // serial ports
    input              uart_txd_in,
@@ -39,28 +39,17 @@ module serial_top
 
    wire               sys_rst_n;
    wire               mmcm_locked;
-   wire               uart_txd_in_d;
-   wire               uart_rxd_out_i;
 
    assign sys_rst_n = mmcm_locked & sys_rst & init_calib_complete;
 
    always_comb begin
-      led[0] <= sw[0];
+      led[0] <= 'b1;
       led[1] <= sys_rst_n;
       led[2] <= init_calib_complete;
-      led[3] <= btn[3];
+      led[3] <= btn[0];
    end
 
    assign tg_compare_error = 'b0;
-
-   // Gen GLOBAL CLK
-   // IBUFG clk_buf (.I(sys_clk_i), .O(sysclk));
-
-   // DFF for avoid meta-stable
-   logic       uart_txd_in_dd = 'b1;
-   OBUF rx_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
-   IBUF rcv_buf (.I(uart_txd_in), .O(uart_txd_in_d));
-   always_ff @(posedge ui_clk) uart_txd_in_dd <= uart_txd_in_d;
 
    localparam I_BYTES = 1;
    localparam O_BYTES = 1;
@@ -117,7 +106,7 @@ module serial_top
    wire                 s_axi_rvalid;
 
    assign s_axi_awid = 'b0;
-   assign s_axi_awaddr = 28'h000_4000;
+   assign s_axi_awaddr = {22'd0, sw, 2'b00};
    assign s_axi_awlen = 'b0;
    assign s_axi_awsize = 3'h2;
    assign s_axi_awburst = 2'b1;
@@ -126,11 +115,11 @@ module serial_top
    assign s_axi_awprot = 'b0;
    assign s_axi_awqos = 'b0;
 
-   assign s_axi_wdata = 128'h0067;
+   assign s_axi_wdata = {120'd0, o_data};
    assign s_axi_wstrb = '1;
 
    assign s_axi_arid = 'b0;
-   assign s_axi_araddr = 28'h000_4000;
+   assign s_axi_araddr = {22'd0, sw, 2'b00};
    assign s_axi_arlen = 'b0;
    assign s_axi_arsize = 3'h2;
    assign s_axi_arburst = 2'b1;
@@ -140,7 +129,7 @@ module serial_top
    assign s_axi_arqos = 'b0;
 
    always_ff @(posedge ui_clk) begin
-      s_axi_awvalid <= btn[3];
+      s_axi_awvalid <= o_valid;
       if (s_axi_awvalid && s_axi_awready) begin
          s_axi_wvalid <= 'b1;
          s_axi_wlast <= 'b1;
@@ -156,17 +145,13 @@ module serial_top
    end
 
    always_ff @(posedge ui_clk) begin
-      s_axi_arvalid <= btn[2];
+      s_axi_arvalid <= btn[0];
       if (s_axi_rvalid) begin
          s_axi_rready <= 'b1;
       end else begin
          s_axi_rready <= 'b0;
       end
    end
-
-   // assign i_data = o_data[I_BYTES*8-1:0];
-   // assign i_valid = o_valid;
-   // assign o_ready = i_ready;
 
    assign i_data = s_axi_rdata[I_BYTES*8-1:0];
    assign i_valid = s_axi_rvalid;
@@ -179,8 +164,8 @@ module serial_top
    serial_if_inst
      (
       .clk(ui_clk),
-      .uart_txd_in(uart_txd_in_dd),
-      .uart_rxd_out(uart_rxd_out_i),
+      .uart_txd_in(uart_txd_in),
+      .uart_rxd_out(uart_rxd_out),
       .nrst(sys_rst_n),
       .*
       );

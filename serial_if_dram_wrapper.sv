@@ -1,8 +1,6 @@
 `timescale 1 ns / 1 ps
-`include "fcpu_definitions.svh"
-import fcpu_pkg::*;
 
-module serial_wrapper
+module serial_dram_wrapper
   (
    // serial
    input              uart_txd_in,
@@ -31,11 +29,12 @@ module serial_wrapper
    output [1:0]       ddr3_dm,
    output [0:0]       ddr3_odt,
    // clk & reset
-   input              CLK12MHZ,
-   input              sys_clk_i,
+   input              CLK12MHZ, // for reference clock of DRAM interface
+   input              CLK100MHZ, // for system clock
    input              ck_rst
    );
 
+   wire               sys_clk_i;
    wire               clk_ref_i;
    wire               locked;
 
@@ -45,10 +44,19 @@ module serial_wrapper
       .clk_out1(clk_ref_i),
       .locked(locked)
       );
+   assign sys_clk_i = CLK100MHZ;
 
-   serial_top serial_top_module
+   wire               uart_txd_in_d, uart_rxd_out_i;
+
+   // DFF for avoid meta-stable
+   IBUF txd_in_buf (.I(uart_txd_in), .O(uart_txd_in_d));
+   OBUF rxd_out_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
+
+   serial_dram_top serial_top_module
      (
       .*,
+      .uart_txd_in(uart_txd_in_d),
+      .uart_rxd_out(uart_rxd_out_i),
       .init_calib_complete(),
       .tg_compare_error(),
       .ui_clk(),
