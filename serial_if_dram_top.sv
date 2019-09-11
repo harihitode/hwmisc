@@ -62,6 +62,8 @@ module serial_dram_top
    wire                 o_valid;
    wire                 o_ready;
 
+   logic [O_BYTES*8-1:0] o_data_l = 'b0;
+
    // Slave Interface Write Data Ports
    wire [3:0]           s_axi_awid;
    wire [27:0]          s_axi_awaddr;
@@ -106,7 +108,7 @@ module serial_dram_top
    wire                 s_axi_rvalid;
 
    assign s_axi_awid = 'b0;
-   assign s_axi_awaddr = {22'd0, sw, 2'b00};
+   assign s_axi_awaddr = {20'd0, sw, 4'b0000}; // 128bit = 16byte alignment
    assign s_axi_awlen = 'b0;
    assign s_axi_awsize = 3'h2;
    assign s_axi_awburst = 2'b1;
@@ -115,11 +117,11 @@ module serial_dram_top
    assign s_axi_awprot = 'b0;
    assign s_axi_awqos = 'b0;
 
-   assign s_axi_wdata = {120'd0, o_data};
+   assign s_axi_wdata = {120'd0, o_data_l};
    assign s_axi_wstrb = '1;
 
    assign s_axi_arid = 'b0;
-   assign s_axi_araddr = {22'd0, sw, 2'b00};
+   assign s_axi_araddr = {20'd0, sw, 4'b0000};
    assign s_axi_arlen = 'b0;
    assign s_axi_arsize = 3'h2;
    assign s_axi_arburst = 2'b1;
@@ -130,6 +132,10 @@ module serial_dram_top
 
    always_ff @(posedge ui_clk) begin
       s_axi_awvalid <= o_valid;
+      // latch data from serial
+      if (o_valid && o_ready) begin
+         o_data_l <= o_data;
+      end
       if (s_axi_awvalid && s_axi_awready) begin
          s_axi_wvalid <= 'b1;
          s_axi_wlast <= 'b1;
@@ -155,7 +161,7 @@ module serial_dram_top
 
    assign i_data = s_axi_rdata[I_BYTES*8-1:0];
    assign i_valid = s_axi_rvalid;
-   assign o_ready = s_axi_wready;
+   assign o_ready = s_axi_awready;
 
    serial_interface
      #(.WTIME(16'h02c1),
