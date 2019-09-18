@@ -15,7 +15,6 @@ module serial_dram_top
    inout [15:0]       ddr3_dq,
    inout [1:0]        ddr3_dqs_n,
    inout [1:0]        ddr3_dqs_p,
-   // Outputs
    output [13:0]      ddr3_addr,
    output [2:0]       ddr3_ba,
    output             ddr3_ras_n,
@@ -29,27 +28,15 @@ module serial_dram_top
    output [1:0]       ddr3_dm,
    output [0:0]       ddr3_odt,
    // clk & reset
-   output             init_calib_complete,
-   output             tg_compare_error,
+   input              clk,
    input              clk_ref_i,
    input              sys_clk_i,
-   output             ui_clk,
    input              sys_rst
    );
 
-   wire               sys_rst_n;
-   wire               mmcm_locked;
+   wire               nrst;
 
-   assign sys_rst_n = mmcm_locked & sys_rst & init_calib_complete;
-
-   always_comb begin
-      led[0] <= 'b1;
-      led[1] <= sys_rst_n;
-      led[2] <= init_calib_complete;
-      led[3] <= btn[0];
-   end
-
-   assign tg_compare_error = 'b0;
+   assign nrst = sys_rst;
 
    localparam I_BYTES = 1;
    localparam O_BYTES = 1;
@@ -130,7 +117,11 @@ module serial_dram_top
    assign s_axi_arprot = 'b0;
    assign s_axi_arqos = 'b0;
 
-   always_ff @(posedge ui_clk) begin
+   always_comb begin
+      led <= 4'h0000;
+   end
+
+   always_ff @(posedge clk) begin
       s_axi_awvalid <= o_valid;
       // latch data from serial
       if (o_valid && o_ready) begin
@@ -150,7 +141,7 @@ module serial_dram_top
       end
    end
 
-   always_ff @(posedge ui_clk) begin
+   always_ff @(posedge clk) begin
       s_axi_arvalid <= btn[0];
       if (s_axi_rvalid) begin
          s_axi_rready <= 'b1;
@@ -164,34 +155,24 @@ module serial_dram_top
    assign o_ready = s_axi_awready;
 
    serial_interface
-     #(.WTIME(16'h02c1),
-       .I_BYTES(I_BYTES),
+     #(.I_BYTES(I_BYTES),
        .O_BYTES(O_BYTES))
    serial_if_inst
      (
-      .clk(ui_clk),
+      .clk(clk),
       .uart_txd_in(uart_txd_in),
       .uart_rxd_out(uart_rxd_out),
-      .nrst(sys_rst_n),
+      .nrst(nrst),
       .*
       );
 
-   mig_7series_0 mem_if_inst
+   dram_ctrl_wrapper dram_ctrl_inst
      (
       .*,
-      .ui_clk(ui_clk),
-      .ui_clk_sync_rst(), // output
-      .mmcm_locked(mmcm_locked),
-      .aresetn('b1),
-      .app_sr_req('b0),
-      .app_ref_req('b0),
-      .app_zq_req('b0),
-      .app_sr_active(),
-      .app_ref_ack(),
-      .app_zq_ack(),
-      .device_temp(),
-      .device_temp_i(12'b0),
-      .sys_rst(sys_rst) // negative
+      .clk(clk),
+      .clk_ref_i(clk_ref_i),
+      .sys_clk_i(sys_clk_i),
+      .nrst(sys_rst)
       );
 
 endmodule

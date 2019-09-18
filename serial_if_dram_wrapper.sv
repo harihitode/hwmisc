@@ -34,6 +34,7 @@ module serial_dram_wrapper
    input              ck_rst
    );
 
+   wire               clk;
    wire               sys_clk_i;
    wire               clk_ref_i;
    wire               locked;
@@ -42,9 +43,12 @@ module serial_dram_wrapper
      (
       .clk_in1(CLK12MHZ),
       .clk_out1(clk_ref_i),
+      .clk_out2(clk),
       .locked(locked)
       );
-   assign sys_clk_i = CLK100MHZ;
+
+   // Gen GLOBAL CLK
+   IBUFG clk_buf (.I(CLK100MHZ), .O(sys_clk_i));
 
    wire               uart_txd_in_d, uart_rxd_out_i;
 
@@ -57,9 +61,7 @@ module serial_dram_wrapper
       .*,
       .uart_txd_in(uart_txd_in_d),
       .uart_rxd_out(uart_rxd_out_i),
-      .init_calib_complete(),
-      .tg_compare_error(),
-      .ui_clk(),
+
       .sys_rst(ck_rst & locked)
       );
 
