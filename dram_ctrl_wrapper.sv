@@ -3,120 +3,145 @@
 module dram_ctrl_wrapper
   (
    // clocks
-   input              clk,
-   input              clk_ref_i,
-   input              sys_clk_i,
+   input          clk,
+   input          clk_ref_i,
+   input          sys_clk_i,
 
    // DDR
-   inout [15:0]       ddr3_dq,
-   inout [1:0]        ddr3_dqs_n,
-   inout [1:0]        ddr3_dqs_p,
-   output [13:0]      ddr3_addr,
-   output [2:0]       ddr3_ba,
-   output             ddr3_ras_n,
-   output             ddr3_cas_n,
-   output             ddr3_we_n,
-   output             ddr3_reset_n,
-   output [0:0]       ddr3_ck_p,
-   output [0:0]       ddr3_ck_n,
-   output [0:0]       ddr3_cke,
-   output [0:0]       ddr3_cs_n,
-   output [1:0]       ddr3_dm,
-   output [0:0]       ddr3_odt,
+   inout [15:0]   ddr3_dq,
+   inout [1:0]    ddr3_dqs_n,
+   inout [1:0]    ddr3_dqs_p,
+   output [13:0]  ddr3_addr,
+   output [2:0]   ddr3_ba,
+   output         ddr3_ras_n,
+   output         ddr3_cas_n,
+   output         ddr3_we_n,
+   output         ddr3_reset_n,
+   output [0:0]   ddr3_ck_p,
+   output [0:0]   ddr3_ck_n,
+   output [0:0]   ddr3_cke,
+   output [0:0]   ddr3_cs_n,
+   output [1:0]   ddr3_dm,
+   output [0:0]   ddr3_odt,
 
    // AXI
    //// Slave Interface Write Address Ports
-   input [3:0]        s_axi_awid,
-   input [27:0]       s_axi_awaddr,
-   input [7:0]        s_axi_awlen,
-   input [2:0]        s_axi_awsize,
-   input [1:0]        s_axi_awburst,
-   input [0:0]        s_axi_awlock,
-   input [3:0]        s_axi_awcache,
-   input [2:0]        s_axi_awprot,
-   input [3:0]        s_axi_awqos,
-   input              s_axi_awvalid,
-   output             s_axi_awready,
+   input [3:0]    s_axi_awid,
+   input [27:0]   s_axi_awaddr,
+   input [7:0]    s_axi_awlen,
+   input [2:0]    s_axi_awsize,
+   input [1:0]    s_axi_awburst,
+   input [0:0]    s_axi_awlock,
+   input [3:0]    s_axi_awcache,
+   input [2:0]    s_axi_awprot,
+   input [3:0]    s_axi_awqos,
+   input          s_axi_awvalid,
+   output         s_axi_awready,
    //// Slave Interface Write Data Ports
-   input [127:0]      s_axi_wdata,
-   input [15:0]       s_axi_wstrb,
-   input              s_axi_wlast,
-   input              s_axi_wvalid,
-   output             s_axi_wready,
+   input [127:0]  s_axi_wdata,
+   input [15:0]   s_axi_wstrb,
+   input          s_axi_wlast,
+   input          s_axi_wvalid,
+   output         s_axi_wready,
    //// Slave Interface Write Response Ports
-   input              s_axi_bready,
-   output [3:0]       s_axi_bid,
-   output [1:0]       s_axi_bresp,
-   output             s_axi_bvalid,
+   input          s_axi_bready,
+   output [3:0]   s_axi_bid,
+   output [1:0]   s_axi_bresp,
+   output         s_axi_bvalid,
    //// Slave Interface Read Address Ports
-   input [3:0]        s_axi_arid,
-   input [27:0]       s_axi_araddr,
-   input [7:0]        s_axi_arlen,
-   input [2:0]        s_axi_arsize,
-   input [1:0]        s_axi_arburst,
-   input [0:0]        s_axi_arlock,
-   input [3:0]        s_axi_arcache,
-   input [2:0]        s_axi_arprot,
-   input [3:0]        s_axi_arqos,
-   input              s_axi_arvalid,
-   output             s_axi_arready,
+   input [3:0]    s_axi_arid,
+   input [27:0]   s_axi_araddr,
+   input [7:0]    s_axi_arlen,
+   input [2:0]    s_axi_arsize,
+   input [1:0]    s_axi_arburst,
+   input [0:0]    s_axi_arlock,
+   input [3:0]    s_axi_arcache,
+   input [2:0]    s_axi_arprot,
+   input [3:0]    s_axi_arqos,
+   input          s_axi_arvalid,
+   output         s_axi_arready,
    //// Slave Interface Read Data Ports
-   input              s_axi_rready,
-   output [3:0]       s_axi_rid,
-   output [127:0]     s_axi_rdata,
-   output [1:0]       s_axi_rresp,
-   output             s_axi_rlast,
-   output             s_axi_rvalid,
+   input          s_axi_rready,
+   output [3:0]   s_axi_rid,
+   output [127:0] s_axi_rdata,
+   output [1:0]   s_axi_rresp,
+   output         s_axi_rlast,
+   output         s_axi_rvalid,
 
-   input              nrst
+   output         locked,
+   input          nrst
    );
 
    wire           ui_clk;
    wire           mmcm_locked;
    wire           init_calib_complete;
 
+   wire           locked_i_f;
+   wire           locked_i_s;
+
+   assign locked_i_f = mmcm_locked & init_calib_complete;
+
+   (* ASYNC_REG="TRUE" *)
+   FDRSE first_locked_l (
+                         .Q(locked_i_s), // Data output
+                         .C(clk),        // Clock input
+                         .CE(1'b1),      // Clock enable input
+                         .D(locked_i_f), // Data input
+                         .R(1'b0),       // Synchronous reset input
+                         .S(1'b0)        // Synchronous set input
+                         );
+
+   FDRSE second_locked_l (
+                          .Q(locked),     // Data output
+                          .C(clk),        // Clock input
+                          .CE(1'b1),      // Clock enable input
+                          .D(locked_i_s), // Data input
+                          .R(1'b0),       // Synchronous reset input
+                          .S(1'b0)        // Synchronous set input
+                          );
+
    // Slave Interface Write Address Ports
-   wire [3:0]           m_axi_awid;
-   wire [27:0]          m_axi_awaddr;
-   wire [7:0]           m_axi_awlen;
-   wire [2:0]           m_axi_awsize;
-   wire [1:0]           m_axi_awburst;
-   wire [0:0]           m_axi_awlock;
-   wire [3:0]           m_axi_awcache;
-   wire [2:0]           m_axi_awprot;
-   wire [3:0]           m_axi_awqos;
-   wire                 m_axi_awvalid;
-   wire                 m_axi_awready;
+   wire [3:0]     m_axi_awid;
+   wire [27:0]    m_axi_awaddr;
+   wire [7:0]     m_axi_awlen;
+   wire [2:0]     m_axi_awsize;
+   wire [1:0]     m_axi_awburst;
+   wire [0:0]     m_axi_awlock;
+   wire [3:0]     m_axi_awcache;
+   wire [2:0]     m_axi_awprot;
+   wire [3:0]     m_axi_awqos;
+   wire           m_axi_awvalid;
+   wire           m_axi_awready;
    // Slave Interface Write Data Ports
-   wire [127:0]         m_axi_wdata;
-   wire [15:0]          m_axi_wstrb;
-   wire                 m_axi_wlast;
-   wire                 m_axi_wvalid;
-   wire                 m_axi_wready;
+   wire [127:0]   m_axi_wdata;
+   wire [15:0]    m_axi_wstrb;
+   wire           m_axi_wlast;
+   wire           m_axi_wvalid;
+   wire           m_axi_wready;
    // Slave Interface Write Response Ports
-   wire                 m_axi_bready;
-   wire [3:0]           m_axi_bid;
-   wire [1:0]           m_axi_bresp;
-   wire                 m_axi_bvalid;
+   wire           m_axi_bready;
+   wire [3:0]     m_axi_bid;
+   wire [1:0]     m_axi_bresp;
+   wire           m_axi_bvalid;
    // Slave Interface Read Address Ports
-   wire [3:0]           m_axi_arid;
-   wire [27:0]          m_axi_araddr;
-   wire [7:0]           m_axi_arlen;
-   wire [2:0]           m_axi_arsize;
-   wire [1:0]           m_axi_arburst;
-   wire [0:0]           m_axi_arlock;
-   wire [3:0]           m_axi_arcache;
-   wire [2:0]           m_axi_arprot;
-   wire [3:0]           m_axi_arqos;
-   wire                 m_axi_arvalid;
-   wire                 m_axi_arready;
+   wire [3:0]     m_axi_arid;
+   wire [27:0]    m_axi_araddr;
+   wire [7:0]     m_axi_arlen;
+   wire [2:0]     m_axi_arsize;
+   wire [1:0]     m_axi_arburst;
+   wire [0:0]     m_axi_arlock;
+   wire [3:0]     m_axi_arcache;
+   wire [2:0]     m_axi_arprot;
+   wire [3:0]     m_axi_arqos;
+   wire           m_axi_arvalid;
+   wire           m_axi_arready;
    // Slave Interface Read Data Ports
-   wire                 m_axi_rready;
-   wire [3:0]           m_axi_rid;
-   wire [127:0]         m_axi_rdata;
-   wire [1:0]           m_axi_rresp;
-   wire                 m_axi_rlast;
-   wire                 m_axi_rvalid;
+   wire           m_axi_rready;
+   wire [3:0]     m_axi_rid;
+   wire [127:0]   m_axi_rdata;
+   wire [1:0]     m_axi_rresp;
+   wire           m_axi_rlast;
+   wire           m_axi_rvalid;
 
    axi_clock_converter_0 axi_clock_converter_inst
      (
