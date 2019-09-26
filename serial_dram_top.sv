@@ -1,6 +1,6 @@
 `timescale 1 ns / 1 ps
 
-module serial_dram_wrapper
+module serial_dram_top
   (
    // serial
    input              uart_txd_in,
