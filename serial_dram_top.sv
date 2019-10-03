@@ -9,13 +9,12 @@ module serial_dram_top
    output logic [3:0] led,
    // Switch
    input logic [3:0]  sw,
-   // btn
+   // Button
    input logic [3:0]  btn,
-   // DDR
+   // DRAM
    inout [15:0]       ddr3_dq,
    inout [1:0]        ddr3_dqs_n,
    inout [1:0]        ddr3_dqs_p,
-   // Outputs
    output [13:0]      ddr3_addr,
    output [2:0]       ddr3_ba,
    output             ddr3_ras_n,
