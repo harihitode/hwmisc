@@ -11,13 +11,12 @@ module fcpu_top
    output logic [3:0] led,
    // Switch
    input logic [3:0]  sw,
-   // btn
+   // Button
    input logic [3:0]  btn,
-   // DDR
+   // DRAM
    inout [15:0]       ddr3_dq,
    inout [1:0]        ddr3_dqs_n,
    inout [1:0]        ddr3_dqs_p,
-   // Outputs
    output [13:0]      ddr3_addr,
    output [2:0]       ddr3_ba,
    output             ddr3_ras_n,
@@ -31,21 +30,49 @@ module fcpu_top
    output [1:0]       ddr3_dm,
    output [0:0]       ddr3_odt,
    // clk & reset
-   input              sys_clk_i,
-   input              clk_ref_i,
-   input [11:0]       device_temp_i,
-   output             init_calib_complete,
-   output             tg_compare_error,
-   output             ui_clk,
-   input              sys_rst
+   input              CLK12MHZ,
+   input              CLK100MHZ,
+   input              ck_rst
    );
 
-   assign tg_compare_error = 'b0;
+   wire               clk;
+   wire               sys_clk_i;
+   wire               clk_ref_i;
+   wire               clk_locked;
+   wire               dram_locked;
+   wire               sys_rst;
+   wire               nrst;
+
+   // reset sygnals
+   assign sys_rst = ck_rst & clk_locked;
+   assign nrst = sys_rst & dram_locked;
+
+   // debug lights
+   always_comb begin
+      led[0] <= clk_locked;
+      led[1] <= dram_locked;
+      led[2] <= sys_rst;
+      led[3] <= ~halt;
+   end
+
+   clk_wiz_0 clk_wiz_inst
+     (
+      .clk_in1(CLK12MHZ),
+      .clk_out1(clk_ref_i),
+      .clk_out2(clk),
+      .locked(clk_locked)
+      );
+
+   // Gen GLOBAL CLK
+   IBUFG clk_buf (.I(CLK100MHZ), .O(sys_clk_i));
+
+   wire               uart_txd_in_d, uart_rxd_out_i;
+
+   // DFF for avoid meta-stable
+   IBUF txd_in_buf (.I(uart_txd_in), .O(uart_txd_in_d));
+   OBUF rxd_out_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
 
    wire               halt;
-   wire               uart_txd_in_d;
-   wire               uart_rxd_out_i;
-   wire               sys_rst_n;
 
    wire [7:0]         io_wdata;
    wire               io_wvalid;
@@ -140,21 +167,12 @@ module fcpu_top
       endcase
    end
 
-   always_comb begin
-      led[0] <= |btn;
-      led[1] <= sys_rst_n;
-      led[2] <= init_calib_complete;
-      led[3] <= ~halt;
-   end
-
-   assign sys_rst_n = mmcm_locked & sys_rst & init_calib_complete;
-
    IBUF tx_buf (.I(uart_txd_in), .O(uart_txd_in_d));
    OBUF rx_buf (.I(uart_rxd_out_i), .O(uart_rxd_out));
 
    fcpu fcpu_inst
      (.*,
-      .clk(ui_clk),
+      .clk(clk),
       // {
       // write address
       .io_awid(),
@@ -199,14 +217,12 @@ module fcpu_top
       .io_rlast('b1),
       .io_rvalid(io_rvalid),
       // }
-      .sys_rst_n(sys_rst_n)
+      .sys_rst_n(nrst)
       );
 
-   serial_interface
-     #(.WTIME(16'h02c1))
-   serial_if_inst
+   serial_interface serial_if_inst
      (
-      .clk(ui_clk),
+      .clk(clk),
       .uart_txd_in(uart_txd_in_d),
       .uart_rxd_out(uart_rxd_out_i),
 
@@ -218,12 +234,12 @@ module fcpu_top
       .o_valid(io_rvalid),
       .o_ready(io_rready),
 
-      .nrst(sys_rst_n)
+      .nrst(nrst)
       );
 
    blk_mem_gen_0 cram_inst
      (
-      .s_aclk(ui_clk),
+      .s_aclk(clk),
       .s_axi_arid(s_cram_arid),
       .s_axi_araddr(s_cram_araddr),
       .s_axi_arlen(s_cram_arlen),
@@ -237,7 +253,7 @@ module fcpu_top
       .s_axi_rlast(s_cram_rlast),
       .s_axi_rvalid(s_cram_rvalid),
       .s_axi_rready(s_cram_rready),
-      .s_aresetn(sys_rst_n),
+      .s_aresetn(nrst),
       .s_axi_awid('b0),
       .s_axi_awaddr('b0),
       .s_axi_awlen('b0),
@@ -258,21 +274,14 @@ module fcpu_top
       .rstb_busy()
       );
 
-   mig_7series_0 mem_if_inst
+   dram_ctrl_wrapper dram_ctrl_inst
      (
       .*,
-      .ui_clk(ui_clk),
-      .ui_clk_sync_rst(), // output
-      .mmcm_locked(mmcm_locked),
-      .aresetn('b1),
-      .app_sr_req('b0),
-      .app_ref_req('b0),
-      .app_zq_req('b0),
-      .app_sr_active(),
-      .app_ref_ack(),
-      .app_zq_ack(),
-      .device_temp(),
-      .sys_rst(sys_rst) // negative
+      .clk(clk),
+      .clk_ref_i(clk_ref_i),
+      .sys_clk_i(sys_clk_i),
+      .locked(dram_locked),
+      .nrst(sys_rst)
       );
 
 endmodule
